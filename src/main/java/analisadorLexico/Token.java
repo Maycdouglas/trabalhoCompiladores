@@ -1,4 +1,4 @@
-package compiladorWithJflex;
+package analisadorLexico;
 
 public class Token {
 

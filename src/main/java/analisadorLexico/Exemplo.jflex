@@ -1,4 +1,4 @@
-package compiladorWithJflex;
+package analisadorLexico;
 import compiladorWithJflex.Token;
  /*  Esta seção é copiada antes da declaração da classe do analisador léxico.
   *  É nesta seção que se deve incluir imports e declaração de pacotes.
@@ -10,7 +10,7 @@ import compiladorWithJflex.Token;
 %unicode
 %line
 %column
-%class LextTest
+%class LextLang
 %function nextToken
 %type Token
 
@@ -53,15 +53,32 @@ import compiladorWithJflex.Token;
 %%
 
 <YYINITIAL>{
-    {identificador} { return symbol(TOKEN_TYPE.ID);   }
-    {numero}        { return symbol(TOKEN_TYPE.NUM, Integer.parseInt(yytext()) );  }
-    "="             { return symbol(TOKEN_TYPE.EQ);   }
-    ";"             { return symbol(TOKEN_TYPE.SEMI); }
-    "*"             { return symbol(TOKEN_TYPE.TIMES); }
-    "+"             { return symbol(TOKEN_TYPE.PLUS); }
-    "/*"            { yybegin(COMMENT);               }
-    {Brancos}       { /* Não faz nada  */             }
-    {LineComment}   {                       }
+    {ID}      { return symbol(TOKEN_TYPE.ID, yytext()); }
+    {TYID}    { return symbol(TOKEN_TYPE.TYID, yytext()); }
+    "if"        { return symbol(TOKEN_TYPE.IF); }
+    "else"      { return symbol(TOKEN_TYPE.ELSE); }
+    "iterate"   { return symbol(TOKEN_TYPE.ITERATE); }
+    "return"    { return symbol(TOKEN_TYPE.RETURN); }
+    "read"      { return symbol(TOKEN_TYPE.READ); }
+    "print"     { return symbol(TOKEN_TYPE.PRINT); }
+    "abstract"  { return symbol(TOKEN_TYPE.ABSTRACT); }
+    "data"      { return symbol(TOKEN_TYPE.DATA); }
+    "true"      { return symbol(TOKEN_TYPE.TRUE); }
+    "false"     { return symbol(TOKEN_TYPE.FALSE); }
+    "null"      { return symbol(TOKEN_TYPE.NULL); }
+    "=="      { return symbol(TOKEN_TYPE.EQEQ); }
+    "!="      { return symbol(TOKEN_TYPE.NEQ); }
+    "<"       { return symbol(TOKEN_TYPE.LT); }
+    "&&"      { return symbol(TOKEN_TYPE.AND); }
+    ":"       { return symbol(TOKEN_TYPE.COLON); }
+    "::"      { return symbol(TOKEN_TYPE.COLONCOLON); }
+    ","       { return symbol(TOKEN_TYPE.COMMA); }
+    "{"       { return symbol(TOKEN_TYPE.LBRACE); }
+    "}"       { return symbol(TOKEN_TYPE.RBRACE); }
+    "["       { return symbol(TOKEN_TYPE.LBRACKET); }
+    "]"       { return symbol(TOKEN_TYPE.RBRACKET); }
+    "("       { return symbol(TOKEN_TYPE.LPAREN); }
+    ")"       { return symbol(TOKEN_TYPE.RPAREN); }
 }
 
 <COMMENT>{
