@@ -42,11 +42,13 @@ import compiladorWithJflex.Token;
 
 
   /* Agora vamos definir algumas macros */
+  ID     = [a-z][a-zA-Z0-9_]*
+  TYID   = [A-Z][a-zA-Z0-9_]*
+  DIGIT      = [0-9]
+  INT        = {DIGIT}+
+  FLOAT      = {DIGIT}*"."{DIGIT}+
   FimDeLinha  = \r|\n|\r\n
   Brancos     = {FimDeLinha} | [ \t\f]
-  numero      = [:digit:] [:digit:]*
-  identificador = [:lowercase:]
-  LineComment = "//" (.)* {FimDeLinha}
 
 %state COMMENT
 
@@ -55,6 +57,9 @@ import compiladorWithJflex.Token;
 <YYINITIAL>{
     {ID}      { return symbol(TOKEN_TYPE.ID, yytext()); }
     {TYID}    { return symbol(TOKEN_TYPE.TYID, yytext()); }
+    {INT}    { return symbol(TOKEN_TYPE.INT, Integer.parseInt(yytext())); }
+    {FLOAT}  { return symbol(TOKEN_TYPE.FLOAT, Float.parseFloat(yytext())); }
+    {Brancos} { /* Ignora espaços em branco */ }
     "if"        { return symbol(TOKEN_TYPE.IF); }
     "else"      { return symbol(TOKEN_TYPE.ELSE); }
     "iterate"   { return symbol(TOKEN_TYPE.ITERATE); }
@@ -66,6 +71,13 @@ import compiladorWithJflex.Token;
     "true"      { return symbol(TOKEN_TYPE.TRUE); }
     "false"     { return symbol(TOKEN_TYPE.FALSE); }
     "null"      { return symbol(TOKEN_TYPE.NULL); }
+    "="          { return symbol(TOKEN_TYPE.ASSIGN); }
+    ";"          { return symbol(TOKEN_TYPE.SEMI); }
+    "+"         { return symbol(TOKEN_TYPE.PLUS); }
+    "-"         { return symbol(TOKEN_TYPE.MINUS); }
+    "*"         { return symbol(TOKEN_TYPE.MUL); }
+    "/"         {return symbol(TOKEN_TYPE.DIV); }
+    "%"         { return symbol(TOKEN_TYPE.MOD); }
     "=="      { return symbol(TOKEN_TYPE.EQEQ); }
     "!="      { return symbol(TOKEN_TYPE.NEQ); }
     "<"       { return symbol(TOKEN_TYPE.LT); }
@@ -79,11 +91,17 @@ import compiladorWithJflex.Token;
     "]"       { return symbol(TOKEN_TYPE.RBRACKET); }
     "("       { return symbol(TOKEN_TYPE.LPAREN); }
     ")"       { return symbol(TOKEN_TYPE.RPAREN); }
+    "--".*    { /* Ignorar comentário de linha */ }
+    "{-"        { yybegin(COMMENT); }
 }
 
 <COMMENT>{
-   "*/"     { yybegin(YYINITIAL); }
-   [^"*/"]* {                     }
+
+    // Fim do comentário de bloco: "-}"
+    "-}"                    { yybegin(YYINITIAL); }
+
+    // Qualquer outro caractere dentro do comentário de bloco
+    .|\n                    { /* Ignorar conteúdo do comentário de bloco */ }
 }
 
 
