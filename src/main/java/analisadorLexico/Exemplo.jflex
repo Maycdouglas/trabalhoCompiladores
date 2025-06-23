@@ -1,5 +1,5 @@
 package analisadorLexico;
-import compiladorWithJflex.Token;
+import analisadorLexico.Token;
 
  /* Esta seção é copiada antes da declaração da classe do analisador léxico.
   * É nesta seção que se deve incluir imports e declaração de pacotes.
