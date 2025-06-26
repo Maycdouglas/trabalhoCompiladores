@@ -1,18 +1,15 @@
 grammar lang;
 
-@parser::header
-{
+@parser::header {
     package parser;
     import ast.*;
 }
 
-@lexer::header
-{
+@lexer::header {
     package parser;
 }
 
 /* Regras da gramática */
-
 prog returns [StmtList ast]:
     s1=stmt SEMI               { $ast = new StmtList($s1.ast.getLine(), $s1.ast.getCol(), $s1.ast); }
     (s2=stmt SEMI              { $ast = new StmtList($s2.ast.getLine(), $s2.ast.getCol(), $ast, $s2.ast); })*
@@ -38,16 +35,20 @@ factor returns [Expr ast]:
   | INT                        { $ast = new Num($INT.line, $INT.pos, Integer.parseInt($INT.text)); }
 ;
 
-/* Regras léxicas */
-
-ID     : [a-z] [a-zA-Z0-9_]*;
-TYID   : [A-Z] [a-zA-Z0-9_]*;
+/* Regras léxicas totalmente corrigidas */
+ID     : [a-z][a-zA-Z0-9_]*;
+TYID   : [A-Z][a-zA-Z0-9_]*;
 
 INT    : [0-9]+;
 FLOAT  : [0-9]* '.' [0-9]+;
 
-CHAR
-    : '\'' ( ~['\\\n\r] | '\\' [ntr\'\\] | '\\' [0-9][0-9][0-9] ) '\'';
+// Definição de CHAR completamente corrigida
+CHAR   : '\'' 
+       ( ~['\\\n\r]        // Caracteres normais
+       | '\\' [nrtb'\\]    // Sequências de escape válidas
+       | '\\' [0-9]{1,3}   // Códigos octais
+       ) 
+       '\'';
 
 TRUE   : 'true';
 FALSE  : 'false';
@@ -70,7 +71,8 @@ MOD      : '%';
 
 EQ       : '==';
 NEQ      : '!=';
-LT       : '<';
+LT       : '<';      // Operador de comparação
+GT       : '>';      // Mantido como único símbolo >
 AND      : '&&';
 NOT      : '!';
 
@@ -87,8 +89,6 @@ LBRACE   : '{';
 RBRACE   : '}';
 LBRACK   : '[';
 RBRACK   : ']';
-LANGLE   : '<';
-RANGLE   : '>';
 
 LINE_COMMENT  : '--' ~[\r\n]* -> skip;
 BLOCK_COMMENT : '{-' .*? '-}' -> skip;
