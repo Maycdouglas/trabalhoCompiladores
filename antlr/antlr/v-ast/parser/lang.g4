@@ -44,9 +44,9 @@ FLOAT  : [0-9]* '.' [0-9]+;
 
 // Definição de CHAR completamente corrigida
 CHAR   : '\'' 
-       ( ~['\\\n\r]        // Caracteres normais
-       | '\\' [nrtb'\\]    // Sequências de escape válidas
-       | '\\' [0-9]{1,3}   // Códigos octais
+       ( ~['\\\n\r]         // qualquer caractere comum
+       | '\\' [nrtb'\\]     // escapes normais
+       | '\\' [0-9] [0-9]? [0-9]?  // até 3 dígitos numéricos
        ) 
        '\'';
 
