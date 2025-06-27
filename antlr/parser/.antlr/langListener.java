@@ -1,4 +1,4 @@
-// Generated from e:/Windows/Projetos/trabalhoCompiladores/antlr/antlr/parser/lang.g4 by ANTLR 4.13.1
+// Generated from e:/Windows/Projetos/trabalhoCompiladores/antlr/antlr/v-ast/parser/lang.g4 by ANTLR 4.13.1
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 
 /**

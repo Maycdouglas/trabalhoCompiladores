@@ -3,6 +3,8 @@ grammar lang;
 @parser::header
 {
     package parser;
+    
+    import ast.*;
 }
 
 @lexer::header
@@ -12,24 +14,26 @@ grammar lang;
 
 /* Regras da gramática */
 
-prog: stmt+;
+prog returns [StmtList ast]: s1=stmt {$ast = new StmtList($s1.ast.getLine(), $s1.ast.getCol(), $s1.ast);} (s2=stmt {$ast = new StmtList($s2.ast.getLine(), $s2.ast.getCol(), $ast, $s2.ast);})*;
 
-stmt :
- ID '=' expr ';'
+stmt returns [Node ast] :
+ ID '=' expr ';' {$ast = new Attr($ID.line, $ID.pos, new ID($ID.line, $ID.pos, $ID.text), $expr.ast);}
 |
- expr ';'
+ expr ';' {$ast = $expr.ast;}
 ;
 
-expr:
- factor ('+' | '*') expr
+expr returns [Expr ast]:
+ factor op='+' e=expr {$ast = new Add($op.line, $op.pos, $factor.ast, $e.ast);}
 |
- factor
+ factor  op='*' e=expr {$ast = new Mul($op.line, $op.pos, $factor.ast, $e.ast);}
+|
+ factor {$ast = $factor.ast;}
 ;
 
-factor:
- ID
+factor returns [Expr ast]:
+ ID {$ast = new ID($ID.line, $ID.pos, $ID.text);}
 |
- INT
+ INT {$ast = new Num($INT.line, $INT.pos, Integer.parseInt($INT.text));}
 ;
 
 /* Regras léxicas */
