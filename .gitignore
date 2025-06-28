@@ -4,7 +4,7 @@ target/
 !**/src/test/**/target/
 
 ## Gerados pelo Antlr ##
-/antlr/v-ast/parser/.antlr
+/antlr/parser/*.java
 *.tokens
 *.interp
 *.class

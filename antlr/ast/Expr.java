@@ -1,5 +1,8 @@
 package ast;
 
+import java.util.HashMap;
+
+
 /*
  * Esta classe representa um comando de Impressão.
  * Expr

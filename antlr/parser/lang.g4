@@ -9,7 +9,7 @@ grammar lang;
     package parser;
 }
 
-/* Regras da gramática */
+/* Regras sintáticas principais */
 
 prog
 	returns[StmtList ast]:
@@ -29,6 +29,8 @@ stmt
 	| ITERATE expr stmt { $ast = new Loop($ITERATE.line, $ITERATE.pos, $expr.ast, $stmt.ast); }
 	| expr { $ast = new Print($expr.ast.getLine(), $expr.ast.getCol(), $expr.ast); };
 
+/* Expressões */
+
 expr
 	returns[Expr ast]:
 	e1 = expr op = AND e2 = rel_expr { $ast = new And($op.line, $op.pos, $e1.ast, $e2.ast); }
@@ -39,7 +41,6 @@ rel_expr
 	e1 = rel_expr op = EQ e2 = add_expr { $ast = new Eq($op.line, $op.pos, $e1.ast, $e2.ast); }
 	| e1 = rel_expr op = NEQ e2 = add_expr { $ast = new Neq($op.line, $op.pos, $e1.ast, $e2.ast); }
 	| e1 = rel_expr op = LT e2 = add_expr { $ast = new Lt($op.line, $op.pos, $e1.ast, $e2.ast); }
-	| e1 = rel_expr op = GT e2 = add_expr { $ast = new Gt($op.line, $op.pos, $e1.ast, $e2.ast); }
 	| add_expr { $ast = $add_expr.ast; };
 
 add_expr
@@ -73,6 +74,43 @@ atom
 	| FALSE { $ast = new BoolExpr($FALSE.line, $FALSE.pos, false); }
 	| LPAREN expr RPAREN { $ast = $expr.ast; };
 
+/* Declarações de tipos e funções */
+
+decl
+	returns[Node ast]:
+	DATA TYID ASSIGN consList { $ast = new DataDecl($DATA.line, $DATA.pos, $TYID.text, $consList.ast); 
+		};
+
+consList
+	returns[Constructor ast]:
+	first = constructor (
+		PIPE next = constructor { $ast = new Constructor(next.getLine(), next.getCol(), $ast, next); 
+			}
+	)* { if ($ast == null) $ast = $first.ast; };
+
+constructor
+	returns[Constructor ast]:
+	TYID { $ast = new Constructor($TYID.line, $TYID.pos, $TYID.text); };
+
+fun
+	returns[Node ast]:
+	ABSTRACT ID COLON type { $ast = new AbstractFun($ABSTRACT.line, $ABSTRACT.pos, $ID.text, $type.ast); 
+		}
+	| FUN ID params ASSIGN expr { $ast = new Fun($FUN.line, $FUN.pos, $ID.text, $params.ast, $expr.ast); 
+		};
+
+params
+	returns[ParamList ast]:
+	ID { $ast = new ParamList($ID.line, $ID.pos, $ID.text); }
+	| ID rest = params { $ast = new ParamList($ID.line, $ID.pos, $ID.text, $rest.ast); };
+
+type
+	returns[Type ast]:
+	ID { $ast = new TypeName($ID.line, $ID.pos, $ID.text); }
+	| LPAREN type RPAREN { $ast = $type.ast; }
+	| t1 = type ARROW t2 = type { $ast = new TypeArrow($t1.ast.getLine(), $t1.ast.getCol(), $t1.ast, $t2.ast); 
+		};
+
 /* Regras léxicas */
 
 ID: [a-z][a-zA-Z0-9_]*;
@@ -82,11 +120,7 @@ INT: [0-9]+;
 FLOAT: [0-9]* '.' [0-9]+;
 
 CHAR:
-	'\'' (
-		~['\\\n\r] // qualquer caractere comum
-		| '\\' [nrtb'\\] // escapes normais
-		| '\\' [0-9] [0-9]? [0-9]? // até 3 dígitos numéricos
-	) '\'';
+	'\'' (~['\\\n\r] | '\\' [nrtb'\\] | '\\' [0-9] [0-9]? [0-9]?) '\'';
 
 TRUE: 'true';
 FALSE: 'false';
@@ -100,6 +134,7 @@ PRINT: 'print';
 IF: 'if';
 ELSE: 'else';
 ITERATE: 'iterate';
+FUN: 'fun';
 
 PLUS: '+';
 MINUS: '-';
@@ -110,7 +145,6 @@ MOD: '%';
 EQ: '==';
 NEQ: '!=';
 LT: '<';
-GT: '>';
 AND: '&&';
 NOT: '!';
 
@@ -120,6 +154,8 @@ COLON: ':';
 SEMI: ';';
 COMMA: ',';
 DOT: '.';
+PIPE: '|';
+ARROW: '->';
 
 LPAREN: '(';
 RPAREN: ')';
