@@ -4,23 +4,38 @@ package ast;
  * Esta classe representa uma Operção binária.
  * Expr [opreação] Expr
  */
-import java.util.HashMap; 
+import java.util.HashMap;
 
 public abstract class BinOP extends Expr {
-      
-      private Expr l;
-      private Expr r;
-      
-      public BinOP(int lin, int col, Expr l, Expr r){
-           super(lin,col);
-           this.l = l;
-           this.r = r;
-      }
-      
-      public void setLeft(Expr n){  l = n; }
-      public void setRight(Expr n){ r = n; }
-      
-      public Expr getLeft(){ return l;}
-      public Expr getRight(){ return r;}
-      
+
+    private Expr l;
+    private Expr r;
+
+    public BinOP(int lin, int col, Expr l, Expr r) {
+        super(lin, col);
+        this.l = l;
+        this.r = r;
+    }
+
+    public void setLeft(Expr n) {
+        l = n;
+    }
+
+    public void setRight(Expr n) {
+        r = n;
+    }
+
+    public Expr getLeft() {
+        return l;
+    }
+
+    public Expr getRight() {
+        return r;
+    }
+
+    @Override
+    public int interpret(HashMap<String, Integer> mem) {
+        throw new UnsupportedOperationException("AbstractFun not yet implemented");
+    }
+
 }

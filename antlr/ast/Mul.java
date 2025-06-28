@@ -27,4 +27,5 @@ public class Mul extends BinOP {
       public int interpret(HashMap<String,Integer> m){
           return getLeft().interpret(m) * getRight().interpret(m);
       }
+      
 }

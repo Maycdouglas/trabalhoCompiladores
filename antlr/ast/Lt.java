@@ -10,4 +10,9 @@ public class Lt extends Expr {
         this.left = left;
         this.right = right;
     }
+
+    @Override
+    public int interpret(HashMap<String, Integer> mem) {
+        throw new UnsupportedOperationException("AbstractFun not yet implemented");
+    }
 }

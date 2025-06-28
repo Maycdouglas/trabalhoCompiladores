@@ -25,4 +25,5 @@ public class Num extends Expr {
       public int interpret(HashMap<String,Integer> m){
             return l;
       }
+      
 }

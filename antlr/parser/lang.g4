@@ -76,18 +76,14 @@ atom
 
 /* Declarações de tipos e funções */
 
-decl
-	returns[Node ast]:
-	DATA TYID ASSIGN consList { $ast = new DataDecl($DATA.line, $DATA.pos, $TYID.text, $consList.ast); 
-		};
-
-consList
-	returns[Constructor ast]:
-	first = constructor (
-		PIPE next = constructor { $ast = new Constructor(next.getLine(), next.getCol(), $ast, next); 
-			}
-	)* { if ($ast == null) $ast = $first.ast; };
-
+/*
+ decl returns[Node ast]: DATA TYID ASSIGN consList { $ast = new DataDecl($DATA.line, $DATA.pos,
+ $TYID.text, $consList.ast); };
+ 
+ consList returns[Constructor ast]: first = constructor ( PIPE next = constructor { $ast = new
+ Constructor(next.getLine(), next.getCol(), $ast, next); } )* { if ($ast == null) $ast = $first.ast;
+ };
+ */
 constructor
 	returns[Constructor ast]:
 	TYID { $ast = new Constructor($TYID.line, $TYID.pos, $TYID.text); };
