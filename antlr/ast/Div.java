@@ -8,8 +8,4 @@ public class Div extends BinOP {
         super(line, col, left, right);
     }
 
-    @Override
-    public Object interpret(HashMap<String, Object> mem) {
-        return (int) getLeft().interpret(mem) / (int) getRight().interpret(mem);
-    }
 }

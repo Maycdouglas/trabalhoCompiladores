@@ -11,9 +11,4 @@ public class TypeName extends Type {
         this.name = name;
     }
 
-    @Override
-    public Object interpret(HashMap<String, Object> mem) {
-        // Lógica de interpretação para tipos
-        return null; // Ou implementação apropriada
-    }
 }

@@ -1,5 +1,6 @@
 // And.java
 package ast;
+
 import java.util.HashMap;
 
 public class And extends Expr {
@@ -11,8 +12,4 @@ public class And extends Expr {
         this.right = right;
     }
 
-    @Override
-    public Object interpret(HashMap<String, Object> mem) {
-        return (boolean)left.interpret(mem) && (boolean)right.interpret(mem);
-    }
 }
