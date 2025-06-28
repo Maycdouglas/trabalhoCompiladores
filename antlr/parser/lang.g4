@@ -27,9 +27,21 @@ stmt
 		}
 	| IF expr stmt { $ast = new If($IF.line, $IF.pos, $expr.ast, $stmt.ast); }
 	| ITERATE expr stmt { $ast = new Loop($ITERATE.line, $ITERATE.pos, $expr.ast, $stmt.ast); }
-	| expr { $ast = new Print($expr.ast.getLine(), $expr.ast.getCol(), $expr.ast); };
+	| expr { $ast = new Print($expr.ast.getLine(), $expr.ast.getCol(), $expr.ast); }
+	| data_decl { $ast = $data_decl.ast; };
 
 /* Expressões */
+
+constructor
+	returns[Constructor ast]:
+	TYID { $ast = new Constructor($TYID.line, $TYID.pos, $TYID.text); };
+
+consList
+	returns[Constructor ast]:
+	c1 = constructor { $ast = $c1.ast; } (
+		PIPE c2 = constructor { $ast = new Constructor($c2.ast.getLine(), $c2.ast.getCol(), $ast, $c2.ast); 
+			}
+	)*;
 
 expr
 	returns[Expr ast]:
@@ -76,18 +88,16 @@ atom
 
 /* Declarações de tipos e funções */
 
-data_decl:
-	ABSTRACT DATA TYID LBRACE (member_decl | fun_decl)* RBRACE
-	| DATA TYID LBRACE member_decl* RBRACE;
+data_decl
+	returns[Node ast]:
+	DATA TYID ASSIGN consList {
+        $ast = new DataDecl($DATA.line, $DATA.pos, $TYID.text, $consList.ast);
+    };
 
 member_decl: ID DCOLON type SEMI;
 
 fun_decl:
 	ID LPAREN params? RPAREN (COLON type (COMMA type)*)? LBRACE stmt* RBRACE;
-
-constructor
-	returns[Constructor ast]:
-	TYID { $ast = new Constructor($TYID.line, $TYID.pos, $TYID.text); };
 
 fun
 	returns[Node ast]:

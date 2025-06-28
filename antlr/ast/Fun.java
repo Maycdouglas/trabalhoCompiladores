@@ -14,8 +14,20 @@ public class Fun extends Node {
         this.body = body;
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public ParamList getParams() {
+        return params;
+    }
+
+    public Expr getBody() {
+        return body;
+    }
+
     @Override
     public int interpret(HashMap<String, Integer> mem) {
-        throw new UnsupportedOperationException("Fun not yet implemented");
+        throw new UnsupportedOperationException("Fun cannot be interpreted directly");
     }
 }
