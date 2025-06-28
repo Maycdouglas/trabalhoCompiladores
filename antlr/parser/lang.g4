@@ -76,14 +76,15 @@ atom
 
 /* Declarações de tipos e funções */
 
-/*
- decl returns[Node ast]: DATA TYID ASSIGN consList { $ast = new DataDecl($DATA.line, $DATA.pos,
- $TYID.text, $consList.ast); };
- 
- consList returns[Constructor ast]: first = constructor ( PIPE next = constructor { $ast = new
- Constructor(next.getLine(), next.getCol(), $ast, next); } )* { if ($ast == null) $ast = $first.ast;
- };
- */
+data_decl:
+	ABSTRACT DATA TYID LBRACE (member_decl | fun_decl)* RBRACE
+	| DATA TYID LBRACE member_decl* RBRACE;
+
+member_decl: ID DCOLON type SEMI;
+
+fun_decl:
+	ID LPAREN params? RPAREN (COLON type (COMMA type)*)? LBRACE stmt* RBRACE;
+
 constructor
 	returns[Constructor ast]:
 	TYID { $ast = new Constructor($TYID.line, $TYID.pos, $TYID.text); };
@@ -94,6 +95,11 @@ fun
 		}
 	| FUN ID params ASSIGN expr { $ast = new Fun($FUN.line, $FUN.pos, $ID.text, $params.ast, $expr.ast); 
 		};
+
+fun_call:
+	ID LPAREN (expr (COMMA expr)*)? RPAREN (
+		LANGLE lvalue (COMMA lvalue)* RANGLE
+	)?;
 
 params
 	returns[ParamList ast]:
@@ -106,6 +112,11 @@ type
 	| LPAREN type RPAREN { $ast = $type.ast; }
 	| t1 = type ARROW t2 = type { $ast = new TypeArrow($t1.ast.getLine(), $t1.ast.getCol(), $t1.ast, $t2.ast); 
 		};
+
+lvalue:
+	ID							# VarAccess
+	| lvalue LBRACK expr RBRACK	# ArrayAccess
+	| lvalue DOT ID				# FieldAccess;
 
 /* Regras léxicas */
 
@@ -138,9 +149,11 @@ MUL: '*';
 DIV: '/';
 MOD: '%';
 
+fragment ANGLE: '<'; // Fragmento base que não gera token sozinho
+
 EQ: '==';
 NEQ: '!=';
-LT: '<';
+LT: ANGLE;
 AND: '&&';
 NOT: '!';
 
@@ -159,6 +172,8 @@ LBRACE: '{';
 RBRACE: '}';
 LBRACK: '[';
 RBRACK: ']';
+RANGLE: '>';
+LANGLE: ANGLE;
 
 LINE_COMMENT: '--' ~[\r\n]* -> skip;
 BLOCK_COMMENT: '{-' .*? '-}' -> skip;
