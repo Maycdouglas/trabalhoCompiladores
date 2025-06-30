@@ -2,157 +2,207 @@ grammar lang;
 
 @parser::header {
     package parser;
-    import ast.*;
 }
 
 @lexer::header {
     package parser;
 }
 
-/* Regras sintáticas principais */
+/* Regras da gramática */
+/* iniciadas com letras minusculas */
 
-prog
-	returns[StmtList ast]:
-	s1 = stmt SEMI { $ast = new StmtList($s1.ast.getLine(), $s1.ast.getCol(), $s1.ast); } (
-		s2 = stmt SEMI { $ast = new StmtList($s2.ast.getLine(), $s2.ast.getCol(), $ast, $s2.ast); }
-	)*;
+prog: def*
+;
 
-stmt
-	returns[Node ast]:
-	ID ASSIGN expr { $ast = new Attr($ID.line, $ID.pos, new ID($ID.line, $ID.pos, $ID.text), $expr.ast); 
-		}
-	| RETURN expr { $ast = new Return($RETURN.line, $RETURN.pos, $expr.ast); }
-	| READ { $ast = new Read($READ.line, $READ.pos); }
-	| IF expr s1 = stmt ELSE s2 = stmt { $ast = new If($IF.line, $IF.pos, $expr.ast, $s1.ast, $s2.ast); 
-		}
-	| IF expr stmt { $ast = new If($IF.line, $IF.pos, $expr.ast, $stmt.ast); }
-	| ITERATE expr stmt { $ast = new Loop($ITERATE.line, $ITERATE.pos, $expr.ast, $stmt.ast); }
-	| expr { $ast = new Print($expr.ast.getLine(), $expr.ast.getCol(), $expr.ast); }
-	| data_decl { $ast = $data_decl.ast; };
+def: data | fun
+;
 
-/* Expressões */
+/* O ANTLR PODE RECLAMAR DE AMBIGUIDADE AQUI
 
-constructor
-	returns[Constructor ast]:
-	TYID { $ast = new Constructor($TYID.line, $TYID.pos, $TYID.text); };
+Abaixo deixei como tinha feito anteriormente, entretanto, foi necessário mudar, devido a AMBIGUIDADE causada pelo DATA TYID.
+A recomendação é separar em duas novas regras, pensando no interpretador e compilador no futuro.
 
-consList
-	returns[Constructor ast]:
-	c1 = constructor { $ast = $c1.ast; } (
-		PIPE c2 = constructor { $ast = new Constructor($c2.ast.getLine(), $c2.ast.getCol(), $ast, $c2.ast); 
-			}
-	)*;
+data: 
+ ABSTRACT DATA TYID '{' (decl | fun)* '}'
+|
+ DATA TYID '{' decl* '}'
+;
+*/
 
-expr
-	returns[Expr ast]:
-	e1 = expr op = AND e2 = rel_expr { $ast = new And($op.line, $op.pos, $e1.ast, $e2.ast); }
-	| rel_expr { $ast = $rel_expr.ast; };
+data: dataAbstract | dataRegular
+;
 
-rel_expr
-	returns[Expr ast]:
-	e1 = rel_expr op = EQ e2 = add_expr { $ast = new Eq($op.line, $op.pos, $e1.ast, $e2.ast); }
-	| e1 = rel_expr op = NEQ e2 = add_expr { $ast = new Neq($op.line, $op.pos, $e1.ast, $e2.ast); }
-	| e1 = rel_expr op = LT e2 = add_expr { $ast = new Lt($op.line, $op.pos, $e1.ast, $e2.ast); }
-	| add_expr { $ast = $add_expr.ast; };
+dataAbstract: ABSTRACT DATA TYID '{' (decl | fun)* '}'
+;
 
-add_expr
-	returns[Expr ast]:
-	e1 = add_expr op = PLUS e2 = mul_expr { $ast = new Add($op.line, $op.pos, $e1.ast, $e2.ast); }
-	| e1 = add_expr op = MINUS e2 = mul_expr { $ast = new Sub($op.line, $op.pos, $e1.ast, $e2.ast); 
-		}
-	| mul_expr { $ast = $mul_expr.ast; };
+dataRegular: DATA TYID '{' decl* '}'
+;
 
-mul_expr
-	returns[Expr ast]:
-	e1 = mul_expr op = MUL e2 = unary_expr { $ast = new Mul($op.line, $op.pos, $e1.ast, $e2.ast); }
-	| e1 = mul_expr op = DIV e2 = unary_expr { $ast = new Div($op.line, $op.pos, $e1.ast, $e2.ast); 
-		}
-	| e1 = mul_expr op = MOD e2 = unary_expr { $ast = new Mod($op.line, $op.pos, $e1.ast, $e2.ast); 
-		}
-	| unary_expr { $ast = $unary_expr.ast; };
+decl: ID '::' type ';'
+;
 
-unary_expr
-	returns[Expr ast]:
-	NOT e = unary_expr { $ast = new Not($NOT.line, $NOT.pos, $e.ast); }
-	| atom { $ast = $atom.ast; };
 
-atom
-	returns[Expr ast]:
-	ID { $ast = new ID($ID.line, $ID.pos, $ID.text); }
-	| INT { $ast = new Num($INT.line, $INT.pos, Integer.parseInt($INT.text)); }
-	| FLOAT { $ast = new Real($FLOAT.line, $FLOAT.pos, Double.parseDouble($FLOAT.text)); }
-	| CHAR { $ast = new CharExpr($CHAR.line, $CHAR.pos, $CHAR.text); }
-	| TRUE { $ast = new BoolExpr($TRUE.line, $TRUE.pos, true); }
-	| FALSE { $ast = new BoolExpr($FALSE.line, $FALSE.pos, false); }
-	| LPAREN expr RPAREN { $ast = $expr.ast; };
+/* Inicialmente fiz como está abaixo, porém, pensando na legibilidade e manutenção futura,
+foi recomendado que os tipos do retorno se tornassem uma regra separada.
+fun: ID '(' params? ')' (':' type (',' type)* )? cmd
+;
+*/
 
-/* Declarações de tipos e funções */
+fun: ID '(' params? ')' retTypes? cmd
+;
 
-data_decl
-	returns[Node ast]:
-	DATA TYID ASSIGN consList {
-        $ast = new DataDecl($DATA.line, $DATA.pos, $TYID.text, $consList.ast);
-    };
+retTypes: ':' type (',' type)*
+;
 
-member_decl: ID DCOLON type SEMI;
 
-fun_decl:
-	ID LPAREN params? RPAREN (COLON type (COMMA type)*)? LBRACE stmt* RBRACE;
+/* Inicialmente fiz como está abaixo, porém, é recomendado separar se for usar AST com listas.
+Facilitará percorrer a lista de parâmetros no Visitor.
+params: ID '::' type (',' ID '::' type)*
+;
+*/
 
-fun
-	returns[Node ast]:
-	ABSTRACT ID COLON type { $ast = new AbstractFun($ABSTRACT.line, $ABSTRACT.pos, $ID.text, $type.ast); 
-		}
-	| FUN ID params ASSIGN expr { $ast = new Fun($FUN.line, $FUN.pos, $ID.text, $params.ast, $expr.ast); 
-		};
+params: param (',' param)*
+;
 
-fun_call:
-	ID LPAREN (expr (COMMA expr)*)? RPAREN (
-		LANGLE lvalue (COMMA lvalue)* RANGLE
-	)?;
+param: ID '::' type
+;
 
-params
-	returns[ParamList ast]:
-	ID { $ast = new ParamList($ID.line, $ID.pos, $ID.text); }
-	| ID rest = params { $ast = new ParamList($ID.line, $ID.pos, $ID.text, $rest.ast); };
+/* aqui foi necessário remover a recursão à esquerda */
+type: btype ('[' ']')*
+;
 
-type
-	returns[Type ast]:
-	ID { $ast = new TypeName($ID.line, $ID.pos, $ID.text); }
-	| LPAREN type RPAREN { $ast = $type.ast; }
-	| t1 = type ARROW t2 = type { $ast = new TypeArrow($t1.ast.getLine(), $t1.ast.getCol(), $t1.ast, $t2.ast); 
-		};
+btype: INT_TYPE | CHAR_TYPE | BOOL_TYPE | FLOAT_TYPE | TYID
+;
+
+block: '{' cmd* '}'
+;
+
+cmd: 
+ block 
+|
+ IF '(' exp ')' cmd
+|
+ IF '(' exp ')' cmd ELSE cmd
+|
+ ITERATE '(' itcond ')' cmd
+|
+ READ lvalue ';'
+|
+ PRINT exp ';'
+|
+ RETURN exp (',' exp)* ';'
+|
+ lvalue '=' exp ';'
+|
+ ID '(' exps? ')' ('<' lvalue (',' lvalue)* '>')? ';'
+;
+
+/* Fiz da forma que está abaixo, mas recomendou o uso de labels para facilitar o Visit no futuro.
+itcond: ID ':' exp | exp
+;
+*/
+
+itcond: 
+ ID ':' exp          #CondLabelled 
+| 
+ exp                 #CondExpr
+;
+
+/*TUDO ABAIXO TEVE QUE MUDAR, DEVIDO RECURSÃO À ESQUERDA
+exp:
+ exp op exp
+|
+ '!' exp
+|
+ '-' exp
+|
+ lvalue
+|
+ '(' exp ')'
+|
+ NEW type ('[' exp ']')?
+|
+ ID '(' exps? ')' '[' exp ']'
+|
+ TRUE
+|
+ FALSE
+|
+ NULL
+|
+ INT
+|
+ FLOAT
+|
+ CHAR
+;
+
+op: '&&' | '<' | '==' | '!=' | '+' | '-' | '*' | '/' | '%'
+;
 
 lvalue:
-	ID							# VarAccess
-	| lvalue LBRACK expr RBRACK	# ArrayAccess
-	| lvalue DOT ID				# FieldAccess;
+ ID
+|
+ lvalue '[' exp ']'
+|
+ lvalue '.' ID
+;
+
+exps: exp (',' exp)
+*/
+
+exp: expAnd                  #ExpAnd
+;
+
+expAnd:
+ expAnd '&&' expEq           #AndExpr
+| 
+ expEq                       #ToEq
+;
+
+// PAREI AQUI PQ O CHAT GPT FICOU BURRO.
+
+expEq:
+ expEq ('==' | '!=') expRel  #EqExpr
+|
+ expRel                      #ToRel
+;
+
 
 /* Regras léxicas */
-
-ID: [a-z][a-zA-Z0-9_]*;
-TYID: [A-Z][a-zA-Z0-9_]*;
-
-INT: [0-9]+;
-FLOAT: [0-9]* '.' [0-9]+;
-
-CHAR:
-	'\'' (~['\\\n\r] | '\\' [nrtb'\\] | '\\' [0-9] [0-9]? [0-9]?) '\'';
-
-TRUE: 'true';
-FALSE: 'false';
-NULL: 'null';
+/* iniciadas com letras maiusculas */
 
 ABSTRACT: 'abstract';
 DATA: 'data';
-RETURN: 'return';
-READ: 'read';
-PRINT: 'print';
+TYID: [A-Z][a-zA-Z0-9_]*;
+ID: [a-z][a-zA-Z0-9_]*;
+INT_TYPE: 'Int';
+CHAR_TYPE: 'Char';
+BOOL_TYPE: 'Bool';
+FLOAT_TYPE: 'Float';
 IF: 'if';
 ELSE: 'else';
 ITERATE: 'iterate';
-FUN: 'fun';
+READ: 'read';
+PRINT: 'print';
+RETURN: 'return';
+NEW: 'new';
+TRUE: 'true';
+FALSE: 'false';
+NULL: 'null';
+INT: [0-9]+;
+FLOAT: [0-9]* '.' [0-9]+;
+CHAR: 
+	'\'' 
+    	( ~['\\\n\r]            // caractere normal, exceto aspas simples, barra invertida, quebra linha, carriage return
+    	| '\\' [nrtb'\\]        // escapes válidos: \n, \r, \t, \b, \', \\
+    	| '\\' [0-9] [0-9] [0-9]// código ASCII: exatamente 3 dígitos
+    	) 
+  	'\''
+;
 
+
+/* TOKENS QUE EU NÃO ESTAVA USANDO MAS VÃO SER UTEIS NO FUTURO ENTÃO PRECISO SUBSTITUIR OS VALORES LITERAIS ACIMA E VERIFICAR SE PODEM FICAR TODOS NESSA ORDEM */
 PLUS: '+';
 MINUS: '-';
 MUL: '*';
