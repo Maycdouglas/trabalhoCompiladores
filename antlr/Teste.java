@@ -22,6 +22,6 @@ public class Teste {
 
         Node ast = parser.prog().ast;
         HashMap<String, Integer> m = new HashMap<String, Integer>();
-        ast.interpret(m);
+        ast.interpret(m); // Isso aqui não irá funcionar! Essa classe terá que ser adaptada depois
     }
 }
