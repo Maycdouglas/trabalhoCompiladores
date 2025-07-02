@@ -3,6 +3,9 @@ Criei a pasta antlr no disco C: e colei o arquivo .jar do ANTLR lá
 comando para o ANTLR:
 java -jar C:\antlr\antlr-4.8-complete.jar -visitor -o parser parser/lang.g4
 
+Talvez não precise colocar esse aqui no disco C:
+só informar o arquivo que já está na pasta do projeto
+
 - PRECISA ESTAR NA PASTA ANTLR
 - Esse comando gera os arquivos abaixo:
   - langBaseListener.java
