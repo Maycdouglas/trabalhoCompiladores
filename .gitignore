@@ -6,6 +6,7 @@ target/
 ## Gerados pelo Antlr ##
 /antlr/parser/.antlr
 /antlr/parser/*.java
+!/antlr/parser/Main.java
 *.tokens
 *.interp
 *.class
