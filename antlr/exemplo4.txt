@@ -1,9 +1,0 @@
-data Nat = Zero | Succ;
-
-fun ident x = x;
-
-a = 10;
-b = ident(a * 2);
-
-if b == 20
-    return b;
