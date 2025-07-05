@@ -1,6 +1,7 @@
 package ast;
 
 // Programa: contém lista de definições (data e funções)
+// Representa o programa inteiro, com uma lista de definições
 import java.util.List;
 
 public class Prog {

@@ -1,5 +1,7 @@
 package ast;
 
+import java.util.List;
+
 public class DataAbstract extends Data {
     public final List<Decl> declarations;
     public final List<Fun> functions;

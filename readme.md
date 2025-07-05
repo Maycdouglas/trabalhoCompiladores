@@ -26,5 +26,8 @@ javac -cp ".;antlr-4.8-complete.jar" parser\*.java
 
 ### PASSOS PARA TESTAR O PARSER:
 
-1. javac -cp ".;antlr-4.8-complete.jar" parser\*.java
-2. java -cp ".;antlr-4.8-complete.jar" parser.Main caminho/para/arquivo.txt
+<!-- 1. javac -cp ".;antlr-4.8-complete.jar" parser\*.java
+2. javac -cp ".;antlr-4.8-complete.jar" Main.java -->
+
+1. `javac -cp ".;antlr-4.8-complete.jar" ASTBuilder.java parser/*.java ast/*.java Main.java`
+2. `java -cp ".;antlr-4.8-complete.jar" parser.Main exemplo4.txt`

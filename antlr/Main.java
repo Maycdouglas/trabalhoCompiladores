@@ -1,6 +1,8 @@
-package parser;
+package antlr;
 
 import ast.*;
+import parser.*;
+import antlr.ASTBuilder;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -39,5 +41,9 @@ public class Main {
 
         // Imprime a árvore sintática
         System.out.println(tree.toStringTree(parser));
+
+        ASTBuilder visitor = new ASTBuilder();
+        Prog ast = (Prog) visitor.visit(tree);
+        System.out.println("AST criada com sucesso: " + ast);
     }
 }
