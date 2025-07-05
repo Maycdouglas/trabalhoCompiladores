@@ -1,0 +1,8 @@
+data Pessoa {
+  nome :: Char;
+  idade :: Int;
+}
+
+soma(x :: Int, y :: Int): Int {
+  return x + y;
+}
