@@ -29,10 +29,8 @@ javac -cp ".;antlr-4.8-complete.jar" parser\*.java
 <!-- 1. javac -cp ".;antlr-4.8-complete.jar" parser\*.java
 2. javac -cp ".;antlr-4.8-complete.jar" Main.java -->
 
-1. `javac -cp ".;antlr-4.8-complete.jar" ASTBuilder.java parser/*.java ast/*.java Main.java`
-2. `javac -cp ".;antlr-4.8-complete.jar" parser/*.java ast/*.java ASTBuilder.java Main.java`
-3. `java -cp ".;antlr-4.8-complete.jar" antlr.Main exemploDataFun.txt`
-4. `java -cp ".;antlr-4.8-complete.jar" Main exemploDataFun.txt`
+1. `javac -cp ".;antlr-4.8-complete.jar" parser/*.java ast/*.java Main.java`
+2. `java -cp ".;antlr-4.8-complete.jar" Main exemploDataFun.txt`
 
 ### PASSOS PARA GERAR A ÁRVORE EM IMAGEM:
 
