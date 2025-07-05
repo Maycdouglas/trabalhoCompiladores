@@ -1,13 +1,14 @@
-package antlr;
+
 
 import ast.*;
 import parser.*;
-import antlr.ASTBuilder;
+import ast.ASTBuilder;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 
 public class Main {
@@ -18,7 +19,6 @@ public class Main {
         }
 
         String caminhoArquivo = args[0];
-
         // Lê o arquivo passado como argumento
         CharStream input = CharStreams.fromStream(
             new FileInputStream(caminhoArquivo), StandardCharsets.UTF_8);
@@ -41,9 +41,28 @@ public class Main {
 
         // Imprime a árvore sintática
         System.out.println(tree.toStringTree(parser));
-
+        
+        // Contrói a AST
         ASTBuilder visitor = new ASTBuilder();
+        System.out.println("Chegou aqui VISITOR?.");
         Prog ast = (Prog) visitor.visit(tree);
+        System.out.println("Chegou aqui AST?.");
+
         System.out.println("AST criada com sucesso: " + ast);
+
+        // Gera arquivo .dot da AST
+        try(PrintWriter out = new PrintWriter("ast.dot")) {
+            out.println("digraph AST {");
+            System.out.println("Chegou aqui TRY.");
+            out.print(ast.toDot(null));
+            // out.println(ast.toDot());
+            out.println("}");
+            System.out.println("Arquivo ast.dot gerado com sucesso.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
+
+    
+    
 }

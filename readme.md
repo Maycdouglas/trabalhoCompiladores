@@ -30,4 +30,15 @@ javac -cp ".;antlr-4.8-complete.jar" parser\*.java
 2. javac -cp ".;antlr-4.8-complete.jar" Main.java -->
 
 1. `javac -cp ".;antlr-4.8-complete.jar" ASTBuilder.java parser/*.java ast/*.java Main.java`
-2. `java -cp ".;antlr-4.8-complete.jar" parser.Main exemplo4.txt`
+2. `javac -cp ".;antlr-4.8-complete.jar" parser/*.java ast/*.java ASTBuilder.java Main.java`
+3. `java -cp ".;antlr-4.8-complete.jar" antlr.Main exemploDataFun.txt`
+4. `java -cp ".;antlr-4.8-complete.jar" Main exemploDataFun.txt`
+
+### PASSOS PARA GERAR A ÁRVORE EM IMAGEM:
+
+- Download do GRAPHVIZ : `https://graphviz.org/download/`
+- Ao instalar, selecionar opção que adiciona o bin do Graphviz ao PATH do Windows
+  - assim permitirá que use o comando dot no terminal
+- Crie os métodos toDot() para todas as classes na pasta AST
+- No Main.java, adicione trecho que irá gerar o arquivo .dot
+- No terminal, execute o comando: `dot -Tpng ast.dot -o ast.png`

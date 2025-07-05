@@ -1,0 +1,25 @@
+digraph AST {
+"Prog914504136" [label="Prog"];
+"DataRegular2085857771" [label="DataRegular: Pessoa"];
+"Prog914504136" -> "DataRegular2085857771";
+"Decl248609774" [label="Decl: nome"];
+"DataRegular2085857771" -> "Decl248609774";
+"Type708049632" [label="Type: Char"];
+"Decl248609774" -> "Type708049632";
+"Decl1887400018" [label="Decl: idade"];
+"DataRegular2085857771" -> "Decl1887400018";
+"Type285377351" [label="Type: Int"];
+"Decl1887400018" -> "Type285377351";
+"Fun344560770" [label="Fun: soma"];
+"Prog914504136" -> "Fun344560770";
+"Param559450121" [label="Param: x"];
+"Fun344560770" -> "Param559450121";
+"Type716083600" [label="Type: Int"];
+"Param559450121" -> "Type716083600";
+"Param791885625" [label="Param: y"];
+"Fun344560770" -> "Param791885625";
+"Type2001112025" [label="Type: Int"];
+"Param791885625" -> "Type2001112025";
+"Type314265080" [label="Type: Int"];
+"Fun344560770" -> "Type314265080";
+}

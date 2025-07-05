@@ -11,4 +11,19 @@ public class DataAbstract extends Data {
         this.declarations = declarations;
         this.functions = functions;
     }
+
+    @Override
+    public String toDot(String parentId) {
+        String id = "DataAbstract" + hashCode();
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("\"%s\" [label=\"DataAbstract: %s\"];\n", id, name));
+        sb.append(String.format("\"%s\" -> \"%s\";\n", parentId, id));
+        for (Decl d : declarations) {
+            sb.append(d.toDot(id));
+        }
+        for (Fun f : functions) {
+            sb.append(f.toDot(id));
+        }
+        return sb.toString();
+    }
 }

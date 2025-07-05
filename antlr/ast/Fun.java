@@ -3,7 +3,7 @@ package ast;
 import java.util.List;
 
 // Função
-public class Fun implements Def {
+public class Fun implements Def, DotPrintable {
     public final String id;
     public final List<Param> params;
     public final List<Type> retTypes; // pode ser vazio
@@ -14,5 +14,23 @@ public class Fun implements Def {
         this.params = params;
         this.retTypes = retTypes;
         this.body = body;
+    }
+
+     @Override
+    public String toDot(String parentId) {
+        String idNode = "Fun" + hashCode();
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("\"%s\" [label=\"Fun: %s\"];\n", idNode, id));
+        sb.append(String.format("\"%s\" -> \"%s\";\n", parentId, idNode));
+        for (Param p : params) {
+            sb.append(p.toDot(idNode));
+        }
+        for (Type t : retTypes) {
+            sb.append(t.toDot(idNode));
+        }
+        if (body instanceof DotPrintable) {
+            sb.append(((DotPrintable) body).toDot(idNode));
+        }
+        return sb.toString();
     }
 }

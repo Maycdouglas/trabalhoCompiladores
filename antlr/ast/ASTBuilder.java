@@ -1,4 +1,4 @@
-package antlr;
+package ast;
 
 import parser.langBaseVisitor;
 import parser.langParser;
@@ -30,6 +30,15 @@ public class ASTBuilder extends langBaseVisitor<Object> {
         String baseType = ctx.btype().getText();
         int arrayDepth = ctx.LBRACK().size(); // cada par de colchetes conta como 1 dimensão
         return new Type(baseType, arrayDepth);
+    }
+
+    @Override
+    public List<Type> visitRetTypes(langParser.RetTypesContext ctx) {
+        List<Type> types = new ArrayList<>();
+        for (var t : ctx.type()) {
+            types.add((Type) visit(t));
+        }
+        return types;
     }
 
     @Override
@@ -74,7 +83,7 @@ public class ASTBuilder extends langBaseVisitor<Object> {
         if(ctx.params() != null)
             params = (List<Param>) visit(ctx.params());
 
-        List<Type> returnTypes = new ArrayList<>();
+        List<Type> returnTypes = ctx.retTypes() != null ? visitRetTypes(ctx.retTypes()) : new ArrayList<>();
         if (ctx.retTypes() != null)
             returnTypes = (List<Type>) visit(ctx.retTypes());
 
