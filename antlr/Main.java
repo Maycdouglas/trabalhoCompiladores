@@ -5,6 +5,7 @@ import error.SyntaxErrorListener;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
+import java.io.File; // Importa a classe File
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -12,18 +13,16 @@ import java.nio.charset.StandardCharsets;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        if (args.length == 0) {
-            System.err.println("Uso: java Main <arquivo de entrada> [arquivo de saida .dot]");
+        if (args.length < 2) {
+            System.err.println("Uso: java Main <caminho do arquivo de entrada> <diretorio de saida>");
             System.exit(1);
         }
 
-        String caminhoArquivoEntrada = args[0];
-        // Se o caminho de saída for passado, usa-o. Senão, o padrão é
-        // "dotFiles/output.dot".
-        String caminhoArquivoSaida = (args.length > 1) ? args[1] : "dotFiles/output.dot";
+        String caminhoArquivo = args[0];
+        String outputDir = args[1];
 
         // Configuração do Lexer e Parser
-        CharStream input = CharStreams.fromStream(new FileInputStream(caminhoArquivoEntrada), StandardCharsets.UTF_8);
+        CharStream input = CharStreams.fromStream(new FileInputStream(caminhoArquivo), StandardCharsets.UTF_8);
         langLexer lexer = new langLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         langParser parser = new langParser(tokens);
@@ -37,17 +36,21 @@ public class Main {
         Prog ast = (Prog) visitor.visit(tree);
         System.out.println("AST criada com sucesso: " + ast);
 
-        // Gera o arquivo .dot no caminho exato que foi passado ou no padrão
-        try (PrintWriter out = new PrintWriter(caminhoArquivoSaida)) {
+        String nomeArquivoBase = new File(caminhoArquivo).getName().replaceFirst("[.][^.]+$", "");
+
+        String nomeSaidaDot = outputDir + File.separator + nomeArquivoBase + ".dot";
+
+        // Garante que o diretório de destino exista
+        new File(outputDir).mkdirs();
+
+        // Gera o arquivo .dot
+        try (PrintWriter out = new PrintWriter(nomeSaidaDot)) {
             out.println("digraph AST {");
             out.print(ast.toDot(null));
             out.println("}");
-            System.out.println("Arquivo " + caminhoArquivoSaida + " gerado com sucesso.");
+            System.out.println("Arquivo " + nomeSaidaDot + " gerado com sucesso.");
         } catch (IOException e) {
-            System.err.println("Erro ao escrever o arquivo de saída: " + e.getMessage());
-            System.err.println("Verifique se o diretório de destino '"
-                    + new java.io.File(caminhoArquivoSaida).getParent() + "' existe.");
-            System.exit(1);
+            e.printStackTrace();
         }
     }
 }
