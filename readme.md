@@ -1,7 +1,7 @@
 Estando na pasta trabalhoCompiladores/antrl:
 
 comando para o ANTLR:
-java -jar ./antlr-4.8-complete.jar -visitor -o parser parser/lang.g4
+`java -jar ./antlr-4.8-complete.jar -visitor -o parser parser/lang.g4`
 
 Linux:
 java -jar antlr-4.8-complete.jar -visitor -o parser parser/lang.g4
@@ -49,7 +49,7 @@ Linux:
 - No Main.java, adicione trecho que irá gerar o arquivo .dot
 - No terminal, execute o comando: `dot -Tpng ast.dot -o ast.png`
 
-- No terminal, agora deve executar o comando: `dot -Tpng dotFiles/attr_OR_SUGAR.dot -o dotFiles/png/attr_OR_SUGAR.png`
+- No terminal, agora deve executar o comando: `dot -Tpng dotFiles/chainIf.dot -o dotFiles/png/chainIf.png`
 
 ### EXECUÇÃO DO SINTAXE_CERTO.PS1 (WINDOWS):
 
