@@ -6,7 +6,6 @@ java -jar ./antlr-4.8-complete.jar -visitor -o parser parser/lang.g4
 Linux:
 java -jar antlr-4.8-complete.jar -visitor -o parser parser/lang.g4
 
-
 - PRECISA ESTAR NA PASTA ANTLR
 - Esse comando gera os arquivos abaixo:
   - langBaseListener.java
@@ -21,11 +20,10 @@ java -jar antlr-4.8-complete.jar -visitor -o parser parser/lang.g4
   - langLexer.tokens
 
 compilar o arquivo:
-javac -cp ".;antlr-4.8-complete.jar" parser\*.java
+`javac -cp ".;antlr-4.8-complete.jar" parser\*.java`
 
 Linux:
-javac -cp ".:antlr-4.8-complete.jar" parser/*.java
-
+`javac -cp ".:antlr-4.8-complete.jar" parser/*.java`
 
 - gera vários arquivos dentro da pasta parser.
 
@@ -38,6 +36,7 @@ javac -cp ".:antlr-4.8-complete.jar" parser/*.java
 2. `java -cp ".;antlr-4.8-complete.jar" Main attr_OR_SUGAR.lan`
 
 Linux:
+
 1. `javac -cp ".:antlr-4.8-complete.jar" parser/*.java ast/*.java Main.java`
 2. `java -cp ".:antlr-4.8-complete.jar" Main exemploDataFun.txt`
 
@@ -49,3 +48,5 @@ Linux:
 - Crie os métodos toDot() para todas as classes na pasta AST
 - No Main.java, adicione trecho que irá gerar o arquivo .dot
 - No terminal, execute o comando: `dot -Tpng ast.dot -o ast.png`
+
+- No terminal, agora deve executar o comando: `dot -Tpng dotFiles/attr_OR_SUGAR.dot -o dotFiles/png/attr_OR_SUGAR.png`
