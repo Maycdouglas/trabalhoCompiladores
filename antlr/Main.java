@@ -20,7 +20,7 @@ public class Main {
         String caminhoArquivo = args[0];
         // Lê o arquivo passado como argumento
         CharStream input = CharStreams.fromStream(
-            new FileInputStream(caminhoArquivo), StandardCharsets.UTF_8);
+                new FileInputStream(caminhoArquivo), StandardCharsets.UTF_8);
 
         // Cria o lexer
         langLexer lexer = new langLexer(input);
@@ -39,30 +39,31 @@ public class Main {
         parser.removeErrorListeners();
         parser.addErrorListener(new SyntaxErrorListener());
 
-
         // Executa a regra inicial (prog)
         ParseTree tree = parser.prog();
 
         // Imprime a árvore sintática
         System.out.println(tree.toStringTree(parser));
-        
+
         // Contrói a AST
         ASTBuilder visitor = new ASTBuilder();
         Prog ast = (Prog) visitor.visit(tree);
 
         System.out.println("AST criada com sucesso: " + ast);
 
+        // Extrai o nome do arquivo sem path nem extensão
+        String nomeArquivo = new java.io.File(caminhoArquivo).getName().replaceFirst("[.][^.]+$", "");
+        String nomeSaidaDot = "dotFiles/" + nomeArquivo + ".dot";
+
         // Gera arquivo .dot da AST
-        try(PrintWriter out = new PrintWriter("ast.dot")) {
+        try (PrintWriter out = new PrintWriter(nomeSaidaDot)) {
             out.println("digraph AST {");
             out.print(ast.toDot(null));
             out.println("}");
-            System.out.println("Arquivo ast.dot gerado com sucesso.");
+            System.out.println("Arquivo " + nomeSaidaDot + " gerado com sucesso.");
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    
-    
 }
