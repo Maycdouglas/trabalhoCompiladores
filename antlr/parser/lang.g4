@@ -77,7 +77,6 @@ btype: INT_TYPE | CHAR_TYPE | BOOL_TYPE | FLOAT_TYPE | TYID
 block: LBRACE cmd* RBRACE
 ;
 
-/* VERSÃO ANTERIOR - teve que ser alterada devido teste com erro
 cmd: 
  block 
 |
@@ -96,76 +95,6 @@ cmd:
  lvalue ASSIGN exp SEMI
 |
  ID LPAREN exps? RPAREN (LANGLE lvalue (COMMA lvalue)* RANGLE)? SEMI
-;
-*/
-
-/*
-cmd:
- IF LPAREN exp RPAREN cmd (ELSE cmd)?
-|
- ITERATE LPAREN itcond RPAREN cmd
-|
- READ lvalue SEMI
-|
- PRINT exp SEMI
-|
- RETURN exp (COMMA exp)* SEMI
-|
- lvalue ASSIGN exp SEMI
-|
- ID LPAREN exps? RPAREN (LANGLE lvalue (COMMA lvalue)* RANGLE)? SEMI
-|
- block 
-;
-*/
-/*
-cmd:
- IF LPAREN exp RPAREN cmd (ELSE cmd)?          #CmdIfElse
-|
- IF LPAREN exp RPAREN cmd                      #CmdIf
-|
- cmdNoIf                                       #CmdWrapped
-;
-
-cmdNoIf:
- ITERATE LPAREN itcond RPAREN cmd              #CmdIterate
-|
- READ lvalue SEMI                              #CmdRead
-|
- PRINT exp SEMI                                #CmdPrint
-|
- RETURN exp (COMMA exp)* SEMI                  #CmdReturn
-|
- lvalue ASSIGN exp SEMI                        #CmdAssign
-|
- ID LPAREN exps? RPAREN (LANGLE lvalue (COMMA lvalue)* RANGLE)? SEMI   #CmdCall
-|
- block                                         #CmdBlock
-;
-*/
-
-cmd:
- cmdNoIf                                  #CmdWrapped
-|
- IF LPAREN exp RPAREN cmd ELSE cmd     #CmdIfElse
-|
- IF LPAREN exp RPAREN cmd              #CmdIf
-;
-
-cmdNoIf:
- ITERATE LPAREN itcond RPAREN cmd        #CmdIterate
-|
- READ lvalue SEMI                      #CmdRead
-|
- PRINT exp SEMI                        #CmdPrint
-|
- RETURN exp (COMMA exp)* SEMI          #CmdReturn
-|
- lvalue ASSIGN exp SEMI                #CmdAssign
-|
- ID LPAREN exps? RPAREN (LANGLE lvalue (COMMA lvalue)* RANGLE)? SEMI   #CmdCall
-|
- block                                 #CmdBlock
 ;
 
 /* Fiz da forma que está abaixo, mas recomendou o uso de labels para facilitar o Visit no futuro.
@@ -286,8 +215,6 @@ exps: exp (COMMA exp)*                            #ExpsList
 
 ABSTRACT: 'abstract';
 DATA: 'data';
-TYID: [A-Z][a-zA-Z0-9_]*;
-ID: [a-z][a-zA-Z0-9_]*;
 INT_TYPE: 'Int';
 CHAR_TYPE: 'Char';
 BOOL_TYPE: 'Bool';
@@ -302,6 +229,8 @@ NEW: 'new';
 TRUE: 'true';
 FALSE: 'false';
 NULL: 'null';
+TYID: [A-Z][a-zA-Z0-9_]*;
+ID: [a-z][a-zA-Z0-9_]*;
 INT: [0-9]+;
 
 FLOAT: 
