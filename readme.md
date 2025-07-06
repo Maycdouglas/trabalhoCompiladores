@@ -58,6 +58,7 @@ Linux:
 É necessário estar no diretório antlr
 
 - Execute o comando `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` para permitir a execução de scripts temporariamente nessa sessão do PowerShell
-- Execute o comando `.\sintaxe_errado.ps1` para rodar o script
+- Execute o comando `.\sintaxe_certo.ps1` para rodar o script
 
-`dot -Tpng dotFiles/nonAssoc.dot -o dotFiles/png/nonAssoc.png`
+- Execute o comando `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` para permitir a execução de scripts temporariamente nessa sessão do PowerShell
+- Execute o comando `.\sintaxe_errado.ps1` para rodar o script
