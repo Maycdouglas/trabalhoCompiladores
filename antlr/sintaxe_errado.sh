@@ -1,9 +1,9 @@
 #!/bin/bash
 
-ENTRADA_DIR="../Lang/sintaxe/certo"
-DOT_DIR="dotFiles/certos"
-PNG_DIR="dotFiles/certos/png"
-ERROR_DIR="dotFiles/certos/errors"
+ENTRADA_DIR="../Lang/sintaxe/errado"
+DOT_DIR="dotFiles/errados"
+PNG_DIR="dotFiles/errados/png"
+ERROR_DIR="dotFiles/errados/errors"
 
 mkdir -p "$DOT_DIR" "$PNG_DIR" "$ERROR_DIR"
 

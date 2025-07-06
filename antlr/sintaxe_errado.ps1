@@ -1,7 +1,7 @@
-$entradaDir = "..\Lang\sintaxe\certo"
-$dotDir = "dotFiles\certos"
-$pngDir = "dotFiles\certos\png"
-$errorDir = "dotFiles\certos\errors"
+$entradaDir = "..\Lang\sintaxe\errado"
+$dotDir = "dotFiles\errados"
+$pngDir = "dotFiles\errados\png"
+$errorDir = "dotFiles\errados\errors"
 
 # Cria pastas, se necessário
 New-Item -ItemType Directory -Force -Path $dotDir, $pngDir, $errorDir | Out-Null

@@ -33,7 +33,9 @@ Linux:
 2. javac -cp ".;antlr-4.8-complete.jar" Main.java -->
 
 1. `javac -cp ".;antlr-4.8-complete.jar" parser/*.java ast/*.java error/*.java Main.java`
-2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/certo/data.lan`
+2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/errado/nonAssoc.lan`
+
+`java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/errado/attrCHAR.lan`
 
 Linux:
 
@@ -56,4 +58,6 @@ Linux:
 É necessário estar no diretório antlr
 
 - Execute o comando `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` para permitir a execução de scripts temporariamente nessa sessão do PowerShell
-- Execute o comando `.\sintaxe_certo.ps1` para rodar o script
+- Execute o comando `.\sintaxe_errado.ps1` para rodar o script
+
+`dot -Tpng dotFiles/nonAssoc.dot -o dotFiles/png/nonAssoc.png`
