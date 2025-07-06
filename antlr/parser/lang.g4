@@ -77,6 +77,7 @@ btype: INT_TYPE | CHAR_TYPE | BOOL_TYPE | FLOAT_TYPE | TYID
 block: LBRACE cmd* RBRACE
 ;
 
+/* VERSÃO ANTERIOR - teve que ser alterada devido teste com erro
 cmd: 
  block 
 |
@@ -95,6 +96,25 @@ cmd:
  lvalue ASSIGN exp SEMI
 |
  ID LPAREN exps? RPAREN (LANGLE lvalue (COMMA lvalue)* RANGLE)? SEMI
+;
+*/
+
+cmd: 
+ IF LPAREN exp RPAREN cmd (ELSE cmd)?
+|
+ ITERATE LPAREN itcond RPAREN cmd
+|
+ READ lvalue SEMI
+|
+ PRINT exp SEMI
+|
+ RETURN exp (COMMA exp)* SEMI
+|
+ lvalue ASSIGN exp SEMI
+|
+ ID LPAREN exps? RPAREN (LANGLE lvalue (COMMA lvalue)* RANGLE)? SEMI
+|
+ block 
 ;
 
 /* Fiz da forma que está abaixo, mas recomendou o uso de labels para facilitar o Visit no futuro.
