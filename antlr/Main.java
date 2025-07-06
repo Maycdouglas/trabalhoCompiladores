@@ -1,8 +1,7 @@
-
-
 import ast.*;
 import parser.*;
 import ast.ASTBuilder;
+import error.SyntaxErrorListener;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -32,9 +31,14 @@ public class Main {
         // Cria o parser
         langParser parser = new langParser(tokens);
 
-        // Adiciona listener de erro mais informativo
+        // // Adiciona listener de erro mais informativo
+        // parser.removeErrorListeners();
+        // parser.addErrorListener(new DiagnosticErrorListener());
+
+        // Em tese deve impedir a geração de árvores parciais se tiver erro de sintaxe
         parser.removeErrorListeners();
-        parser.addErrorListener(new DiagnosticErrorListener());
+        parser.addErrorListener(new SyntaxErrorListener());
+
 
         // Executa a regra inicial (prog)
         ParseTree tree = parser.prog();
@@ -44,18 +48,14 @@ public class Main {
         
         // Contrói a AST
         ASTBuilder visitor = new ASTBuilder();
-        System.out.println("Chegou aqui VISITOR?.");
         Prog ast = (Prog) visitor.visit(tree);
-        System.out.println("Chegou aqui AST?.");
 
         System.out.println("AST criada com sucesso: " + ast);
 
         // Gera arquivo .dot da AST
         try(PrintWriter out = new PrintWriter("ast.dot")) {
             out.println("digraph AST {");
-            System.out.println("Chegou aqui TRY.");
             out.print(ast.toDot(null));
-            // out.println(ast.toDot());
             out.println("}");
             System.out.println("Arquivo ast.dot gerado com sucesso.");
         } catch (IOException e) {
