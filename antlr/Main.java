@@ -13,57 +13,41 @@ import java.nio.charset.StandardCharsets;
 public class Main {
     public static void main(String[] args) throws IOException {
         if (args.length == 0) {
-            System.err.println("Uso: java parser.Main <caminho do arquivo>");
+            System.err.println("Uso: java Main <arquivo de entrada> [arquivo de saida .dot]");
             System.exit(1);
         }
 
-        String caminhoArquivo = args[0];
-        // Lê o arquivo passado como argumento
-        CharStream input = CharStreams.fromStream(
-                new FileInputStream(caminhoArquivo), StandardCharsets.UTF_8);
+        String caminhoArquivoEntrada = args[0];
+        // Se o caminho de saída for passado, usa-o. Senão, o padrão é
+        // "dotFiles/output.dot".
+        String caminhoArquivoSaida = (args.length > 1) ? args[1] : "dotFiles/output.dot";
 
-        // Cria o lexer
+        // Configuração do Lexer e Parser
+        CharStream input = CharStreams.fromStream(new FileInputStream(caminhoArquivoEntrada), StandardCharsets.UTF_8);
         langLexer lexer = new langLexer(input);
-
-        // Cria o token stream
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-
-        // Cria o parser
         langParser parser = new langParser(tokens);
-
-        // // Adiciona listener de erro mais informativo
-        // parser.removeErrorListeners();
-        // parser.addErrorListener(new DiagnosticErrorListener());
-
-        // Em tese deve impedir a geração de árvores parciais se tiver erro de sintaxe
         parser.removeErrorListeners();
         parser.addErrorListener(new SyntaxErrorListener());
 
-        // Executa a regra inicial (prog)
+        // Processamento e construção da AST
         ParseTree tree = parser.prog();
-
-        // Imprime a árvore sintática
         System.out.println(tree.toStringTree(parser));
-
-        // Contrói a AST
         ASTBuilder visitor = new ASTBuilder();
         Prog ast = (Prog) visitor.visit(tree);
-
         System.out.println("AST criada com sucesso: " + ast);
 
-        // Extrai o nome do arquivo sem path nem extensão
-        String nomeArquivo = new java.io.File(caminhoArquivo).getName().replaceFirst("[.][^.]+$", "");
-        String nomeSaidaDot = "dotFiles/" + nomeArquivo + ".dot";
-
-        // Gera arquivo .dot da AST
-        try (PrintWriter out = new PrintWriter(nomeSaidaDot)) {
+        // Gera o arquivo .dot no caminho exato que foi passado ou no padrão
+        try (PrintWriter out = new PrintWriter(caminhoArquivoSaida)) {
             out.println("digraph AST {");
             out.print(ast.toDot(null));
             out.println("}");
-            System.out.println("Arquivo " + nomeSaidaDot + " gerado com sucesso.");
+            System.out.println("Arquivo " + caminhoArquivoSaida + " gerado com sucesso.");
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Erro ao escrever o arquivo de saída: " + e.getMessage());
+            System.err.println("Verifique se o diretório de destino '"
+                    + new java.io.File(caminhoArquivoSaida).getParent() + "' existe.");
+            System.exit(1);
         }
     }
-
 }
