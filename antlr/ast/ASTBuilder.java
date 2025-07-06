@@ -109,74 +109,43 @@ public class ASTBuilder extends langBaseVisitor<Object> {
     }
 
     @Override
-    public Cmd visitCmdIf(langParser.CmdIfContext ctx) {
-        Exp cond = (Exp) visit(ctx.exp());
-        Cmd thenBranch = (Cmd) visit(ctx.cmd());
-        return new CmdIf(cond, thenBranch, null);
-    }
-
-
-    @Override
-    public Cmd visitCmdIfElse(langParser.CmdIfElseContext ctx) {
-        Exp cond = (Exp) visit(ctx.exp());
-        Cmd thenBranch = (Cmd) visit(ctx.cmd(0));
-        Cmd elseBranch = ctx.cmd().size() > 1 ? (Cmd) visit(ctx.cmd(1)) : null;
-        return new CmdIf(cond, thenBranch, elseBranch);
-    }
-
-
-    @Override
-    public Cmd visitCmdWrapped(langParser.CmdWrappedContext ctx) {
-        return (Cmd) visit(ctx.cmdNoIf());
-    }
-
-    @Override
-    public Cmd visitCmdBlock(langParser.CmdBlockContext ctx) {
-        return (Cmd) visit(ctx.block());
-    }
-
-    @Override
-    public Cmd visitCmdAssign(langParser.CmdAssignContext ctx) {
-        LValue lval = (LValue) visit(ctx.lvalue());
-        Exp expr = (Exp) visit(ctx.exp());
-        return new CmdAssign(lval, expr);
-    }
-
-    @Override
-    public Cmd visitCmdRead(langParser.CmdReadContext ctx) {
-        return new CmdRead((LValue) visit(ctx.lvalue()));
-    }
-
-    @Override
-    public Cmd visitCmdPrint(langParser.CmdPrintContext ctx) {
-        return new CmdPrint((Exp) visit(ctx.exp()));
-    }
-
-    @Override
-    public Cmd visitCmdReturn(langParser.CmdReturnContext ctx) {
-        List<Exp> exps = new ArrayList<>();
-        for (var e : ctx.exp()) {
-            exps.add((Exp) visit(e));
+    public Cmd visitCmd(langParser.CmdContext ctx) {
+        if (ctx.block() != null) return (Cmd) visit(ctx.block());
+        if (ctx.IF() != null && ctx.ELSE() != null) return new CmdIf((Exp) visit(ctx.exp(0)), (Cmd) visit(ctx.cmd(0)), (Cmd) visit(ctx.cmd(1)));
+        if (ctx.IF() != null) {
+            Exp cond = (Exp) visit(ctx.exp(0));
+            Cmd thenBranch = (Cmd) visit(ctx.cmd(0));
+            Cmd elseBranch = ctx.ELSE() != null ? (Cmd) visit(ctx.cmd(1)) : null;
+            return new CmdIf(cond, thenBranch, elseBranch);
         }
-        return new CmdReturn(exps);
-    }
-
-    @Override
-    public Cmd visitCmdIterate(langParser.CmdIterateContext ctx) {
-        return new CmdIterate((ItCond) visit(ctx.itcond()), (Cmd) visit(ctx.cmd()));
-    }
-
-    @Override
-    public Cmd visitCmdCall(langParser.CmdCallContext ctx) {
-        String id = ctx.ID().getText();
-        List<Exp> args = ctx.exps() != null ? (List<Exp>) visit(ctx.exps()) : new ArrayList<>();
-        List<LValue> rets = new ArrayList<>();
-
-        for (var lvCtx : ctx.lvalue()) {
-            rets.add((LValue) visit(lvCtx));
+        if (ctx.ITERATE() != null) return new CmdIterate((ItCond) visit(ctx.itcond()), (Cmd) visit(ctx.cmd(0)));
+        if (ctx.READ() != null) return new CmdRead((LValue) visit(ctx.lvalue(0)));
+        if (ctx.PRINT() != null) return new CmdPrint((Exp) visit(ctx.exp(0)));
+        if (ctx.RETURN() != null) {
+            List<Exp> exps = new ArrayList<>();
+            for (var e : ctx.exp()) {
+                exps.add((Exp) visit(e));
+            }
+            return new CmdReturn(exps);
+        }
+        if (ctx.ASSIGN() != null) return new CmdAssign((LValue) visit(ctx.lvalue(0)), (Exp) visit(ctx.exp(0)));
+        if (ctx.ID() != null && ctx.LANGLE() == null) {
+            String id = ctx.ID().getText();
+            List<Exp> args = ctx.exps() != null ? (List<Exp>) visit(ctx.exps()) : new ArrayList<>();
+            List<LValue> rets = new ArrayList<>();  // sem valores de retorno nesse caso
+            return new CmdCall(id, args, rets);
+        }
+        if (ctx.ID() != null && ctx.LANGLE() != null) {
+            String id = ctx.ID().getText();
+            List<Exp> args = ctx.exps() != null ? (List<Exp>) visit(ctx.exps()) : new ArrayList<>();
+            List<LValue> rets = new ArrayList<>();
+            for (int i = 0; i < ctx.lvalue().size(); i++) {
+                rets.add((LValue) visit(ctx.lvalue(i)));
+            }
+            return new CmdCall(id, args, rets);
         }
 
-        return new CmdCall(id, args, rets);
+        return null;
     }
 
     @Override
@@ -274,18 +243,38 @@ public class ASTBuilder extends langBaseVisitor<Object> {
         return new ExpNull();
     }
 
+    private Exp visitLvalExprFromLValue(LValue lv) {
+        if (lv instanceof LValueId) {
+            return new ExpVar(((LValueId) lv).id);
+        } else if (lv instanceof LValueIndex) {
+            LValueIndex idx = (LValueIndex) lv;
+            return new ExpIndex(visitLvalExprFromLValue(idx.target), idx.index);
+        } else if (lv instanceof LValueField) {
+            LValueField fld = (LValueField) lv;
+            return new ExpField(visitLvalExprFromLValue(fld.target), fld.field);
+        } else {
+            throw new RuntimeException("Cannot convert LValue to Exp: " + lv.getClass().getSimpleName());
+        }
+    }
+
+
     @Override
     public Exp visitLvalExpr(langParser.LvalExprContext ctx) {
         LValue lv = (LValue) visit(ctx.lvalue());
 
         if (lv instanceof LValueId) {
-            String varName = ((LValueId) lv).id;
-            return new ExpVar(varName);
+            return new ExpVar(((LValueId) lv).id);
+        } else if (lv instanceof LValueIndex) {
+            LValueIndex idx = (LValueIndex) lv;
+            return new ExpIndex((Exp) visitLvalExprFromLValue(idx.target), idx.index); // cria uma Exp para o objeto base
+        } else if (lv instanceof LValueField) {
+            LValueField fld = (LValueField) lv;
+            return new ExpField((Exp) visitLvalExprFromLValue(fld.target), fld.field); // cria uma Exp para o objeto base
         } else {
-            // Caso não seja um identificador simples, não faz sentido criar ExpVar
-            throw new RuntimeException("Expected simple variable identifier (LValueId), got: " + lv.getClass().getSimpleName());
+            throw new RuntimeException("Unsupported LValue type: " + lv.getClass().getSimpleName());
         }
     }
+
 
     @Override
     public Exp visitParenExpr(langParser.ParenExprContext ctx) {
