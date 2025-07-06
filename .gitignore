@@ -2,8 +2,6 @@ target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-/lang/*
-/antlr/dotFiles/*
 
 ## Gerados pelo Antlr ##
 /antlr/parser/.antlr
