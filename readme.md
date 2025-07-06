@@ -33,7 +33,7 @@ Linux:
 2. javac -cp ".;antlr-4.8-complete.jar" Main.java -->
 
 1. `javac -cp ".;antlr-4.8-complete.jar" parser/*.java ast/*.java error/*.java Main.java`
-2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/certo/chainIf.lan`
+2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/certo/data.lan`
 
 Linux:
 
@@ -49,7 +49,7 @@ Linux:
 - No Main.java, adicione trecho que irá gerar o arquivo .dot
 - No terminal, execute o comando: `dot -Tpng ast.dot -o ast.png`
 
-- No terminal, agora deve executar o comando: `dot -Tpng dotFiles/chainIf.dot -o dotFiles/png/chainIf.png`
+- No terminal, agora deve executar o comando: `dot -Tpng dotFiles/data.dot -o dotFiles/png/data.png`
 
 ### EXECUÇÃO DO SINTAXE_CERTO.PS1 (WINDOWS):
 

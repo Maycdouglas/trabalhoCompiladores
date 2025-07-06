@@ -8,6 +8,6 @@ digraph AST {
 "CmdBlock248609774" -> "CmdAssign708049632";
 "LValueId1887400018" [label="LValueId: x"];
 "CmdAssign708049632" -> "LValueId1887400018";
-"ExpVar285377351" [label="Var: false"];
-"CmdAssign708049632" -> "ExpVar285377351";
+"ExpBool285377351" [label="Bool: false"];
+"CmdAssign708049632" -> "ExpBool285377351";
 }
