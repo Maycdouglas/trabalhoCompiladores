@@ -39,8 +39,8 @@ Linux:
 
 Linux:
 
-1. `javac -cp ".:antlr-4.8-complete.jar" parser/*.java ast/*.java Main.java`
-2. `java -cp ".:antlr-4.8-complete.jar" Main exemploDataFun.txt`
+1. `javac -cp ".:antlr-4.8-complete.jar" parser/*.java ast/*.java error/*.java Main.java`
+2. `java -cp ".:antlr-4.8-complete.jar" Main attr_OR_SUGAR.lan`
 
 ### PASSOS PARA GERAR A ÁRVORE EM IMAGEM:
 
