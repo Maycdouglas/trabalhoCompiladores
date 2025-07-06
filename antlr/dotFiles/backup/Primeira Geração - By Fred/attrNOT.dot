@@ -1,0 +1,21 @@
+digraph AST {
+"Prog392292416" [label="Prog"];
+"Fun1348949648" [label="Fun: main"];
+"Prog392292416" -> "Fun1348949648";
+"CmdBlock834133664" [label="Block"];
+"Fun1348949648" -> "CmdBlock834133664";
+"CmdAssign985934102" [label="Assign"];
+"CmdBlock834133664" -> "CmdAssign985934102";
+"LValueId1205044462" [label="LValueId: x"];
+"CmdAssign985934102" -> "LValueId1205044462";
+"ExpUnaryOp761960786" [label="Unary: !"];
+"CmdAssign985934102" -> "ExpUnaryOp761960786";
+"ExpParen581374081" [label="Paren"];
+"ExpUnaryOp761960786" -> "ExpParen581374081";
+"ExpBinOp959447386" [label="Op: <"];
+"ExpParen581374081" -> "ExpBinOp959447386";
+"ExpInt1654589030" [label="Int: 10"];
+"ExpBinOp959447386" -> "ExpInt1654589030";
+"ExpInt88558700" [label="Int: 10"];
+"ExpBinOp959447386" -> "ExpInt88558700";
+}

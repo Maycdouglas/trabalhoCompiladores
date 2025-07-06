@@ -1,0 +1,13 @@
+digraph AST {
+"Prog783286238" [label="Prog"];
+"Fun1983747920" [label="Fun: main"];
+"Prog783286238" -> "Fun1983747920";
+"CmdBlock1543727556" [label="Block"];
+"Fun1983747920" -> "CmdBlock1543727556";
+"CmdAssign736709391" [label="Assign"];
+"CmdBlock1543727556" -> "CmdAssign736709391";
+"LValueId225493257" [label="LValueId: x"];
+"CmdAssign736709391" -> "LValueId225493257";
+"ExpVar401424608" [label="Var: true"];
+"CmdAssign736709391" -> "ExpVar401424608";
+}
