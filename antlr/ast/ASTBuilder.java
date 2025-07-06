@@ -201,9 +201,31 @@ public class ASTBuilder extends langBaseVisitor<Object> {
         return new ExpFloat(Float.parseFloat(ctx.FLOAT().getText()));
     }
 
+    private char parseCharLiteral(String text) {
+        if (text.length() < 3 || text.charAt(0) != '\'' || text.charAt(text.length() - 1) != '\'') {
+            throw new RuntimeException("Literal de caractere inválido: " + text);
+        }
+
+        String inner = text.substring(1, text.length() - 1); // remove as aspas simples
+
+        switch (inner) {
+            case "\\n": return '\n';
+            case "\\t": return '\t';
+            case "\\r": return '\r';
+            case "\\'": return '\'';
+            case "\\\\": return '\\';
+            default:
+                if (inner.length() == 1) return inner.charAt(0);
+                throw new RuntimeException("Caractere desconhecido: " + inner);
+        }
+    }
+
     @Override
     public Exp visitCharExpr(langParser.CharExprContext ctx) {
-        return new ExpChar(ctx.CHAR().getText().charAt(1));
+        String text = ctx.CHAR().getText();  // exemplo: "'\\n'"
+        char parsed = parseCharLiteral(text);
+        return new ExpChar(parsed);
+
     }
 
     @Override
