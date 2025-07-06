@@ -1,10 +1,10 @@
 Estando na pasta trabalhoCompiladores/antrl:
 
-comando para o ANTLR:
-java -jar ./antlr-4.8-complete.jar -visitor -o parser parser/lang.g4
-
-Linux:
+comando para o ANTLR (Windows):
 java -jar antlr-4.8-complete.jar -visitor -o parser parser/lang.g4
+
+comando para o ANTLR (Linux):
+java -jar antlr-4.8-complete.jar -visitor -o ./ parser/lang.g4
 
 
 - PRECISA ESTAR NA PASTA ANTLR
@@ -20,10 +20,10 @@ java -jar antlr-4.8-complete.jar -visitor -o parser parser/lang.g4
   - langLexer.interp
   - langLexer.tokens
 
-compilar o arquivo:
+compilar o arquivo (Windows):
 javac -cp ".;antlr-4.8-complete.jar" parser\*.java
 
-Linux:
+compilar o arquivo (Linux):
 javac -cp ".:antlr-4.8-complete.jar" parser/*.java
 
 
@@ -33,7 +33,7 @@ javac -cp ".:antlr-4.8-complete.jar" parser/*.java
 
 <!-- 1. javac -cp ".;antlr-4.8-complete.jar" parser\*.java
 2. javac -cp ".;antlr-4.8-complete.jar" Main.java -->
-
+Windows:
 1. `javac -cp ".;antlr-4.8-complete.jar" parser/*.java ast/*.java error/*.java Main.java`
 2. `java -cp ".;antlr-4.8-complete.jar" Main attr_OR_SUGAR.lan`
 
