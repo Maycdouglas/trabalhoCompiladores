@@ -99,7 +99,8 @@ cmd:
 ;
 */
 
-cmd: 
+/*
+cmd:
  IF LPAREN exp RPAREN cmd (ELSE cmd)?
 |
  ITERATE LPAREN itcond RPAREN cmd
@@ -115,6 +116,56 @@ cmd:
  ID LPAREN exps? RPAREN (LANGLE lvalue (COMMA lvalue)* RANGLE)? SEMI
 |
  block 
+;
+*/
+/*
+cmd:
+ IF LPAREN exp RPAREN cmd (ELSE cmd)?          #CmdIfElse
+|
+ IF LPAREN exp RPAREN cmd                      #CmdIf
+|
+ cmdNoIf                                       #CmdWrapped
+;
+
+cmdNoIf:
+ ITERATE LPAREN itcond RPAREN cmd              #CmdIterate
+|
+ READ lvalue SEMI                              #CmdRead
+|
+ PRINT exp SEMI                                #CmdPrint
+|
+ RETURN exp (COMMA exp)* SEMI                  #CmdReturn
+|
+ lvalue ASSIGN exp SEMI                        #CmdAssign
+|
+ ID LPAREN exps? RPAREN (LANGLE lvalue (COMMA lvalue)* RANGLE)? SEMI   #CmdCall
+|
+ block                                         #CmdBlock
+;
+*/
+
+cmd:
+ cmdNoIf                                  #CmdWrapped
+|
+ IF LPAREN exp RPAREN cmd ELSE cmd     #CmdIfElse
+|
+ IF LPAREN exp RPAREN cmd              #CmdIf
+;
+
+cmdNoIf:
+ ITERATE LPAREN itcond RPAREN cmd        #CmdIterate
+|
+ READ lvalue SEMI                      #CmdRead
+|
+ PRINT exp SEMI                        #CmdPrint
+|
+ RETURN exp (COMMA exp)* SEMI          #CmdReturn
+|
+ lvalue ASSIGN exp SEMI                #CmdAssign
+|
+ ID LPAREN exps? RPAREN (LANGLE lvalue (COMMA lvalue)* RANGLE)? SEMI   #CmdCall
+|
+ block                                 #CmdBlock
 ;
 
 /* Fiz da forma que está abaixo, mas recomendou o uso de labels para facilitar o Visit no futuro.

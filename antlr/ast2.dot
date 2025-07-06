@@ -2,7 +2,6 @@ digraph AST {
   "Prog" -> "Fun"
   "Fun" [label="Fun: main"]
   "Fun" -> "Block"
-
   "Block" -> "CmdAssign"
   "CmdAssign" [label="Assign"]
   "CmdAssign" -> "LValue_x"
@@ -12,7 +11,6 @@ digraph AST {
 
   "Block" -> "CmdIf_Outer"
   "CmdIf_Outer" [label="If"]
-  
   "CmdIf_Outer" -> "CondOuter"
   "CondOuter" [label="<"]
   "CondOuter" -> "LValue_x2"
@@ -22,7 +20,6 @@ digraph AST {
 
   "CmdIf_Outer" -> "CmdIf_Inner"
   "CmdIf_Inner" [label="If"]
-  
   "CmdIf_Inner" -> "CondInner"
   "CondInner" [label="<"]
   "CondInner" -> "LValue_x3"
@@ -37,9 +34,7 @@ digraph AST {
   "CmdThen" -> "ExpInt_10"
   "ExpInt_10" [label="Int: 10"]
 
-  "CmdIf_Inner" -> "Else"
-  "Else" [label="Else"]
-  "Else" -> "CmdElse"
+  "CmdIf_Inner" -> "CmdElse"
   "CmdElse" [label="Assign"]
   "CmdElse" -> "LValue_y2"
   "LValue_y2" [label="Var: y"]
