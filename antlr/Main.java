@@ -1,8 +1,7 @@
-
-
 import ast.*;
 import parser.*;
 import ast.ASTBuilder;
+import error.SyntaxErrorListener;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -32,9 +31,14 @@ public class Main {
         // Cria o parser
         langParser parser = new langParser(tokens);
 
-        // Adiciona listener de erro mais informativo
+        // // Adiciona listener de erro mais informativo
+        // parser.removeErrorListeners();
+        // parser.addErrorListener(new DiagnosticErrorListener());
+
+        // Em tese deve impedir a geração de árvores parciais se tiver erro de sintaxe
         parser.removeErrorListeners();
-        parser.addErrorListener(new DiagnosticErrorListener());
+        parser.addErrorListener(new SyntaxErrorListener());
+
 
         // Executa a regra inicial (prog)
         ParseTree tree = parser.prog();
