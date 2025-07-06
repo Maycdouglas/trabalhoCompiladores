@@ -33,7 +33,7 @@ Linux:
 2. javac -cp ".;antlr-4.8-complete.jar" Main.java -->
 
 1. `javac -cp ".;antlr-4.8-complete.jar" parser/*.java ast/*.java error/*.java Main.java`
-2. `java -cp ".;antlr-4.8-complete.jar" Main attr_OR_SUGAR.lan`
+2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/certo/chainIf.lan`
 
 Linux:
 
@@ -50,3 +50,10 @@ Linux:
 - No terminal, execute o comando: `dot -Tpng ast.dot -o ast.png`
 
 - No terminal, agora deve executar o comando: `dot -Tpng dotFiles/attr_OR_SUGAR.dot -o dotFiles/png/attr_OR_SUGAR.png`
+
+### EXECUÇÃO DO SINTAXE_CERTO.PS1 (WINDOWS):
+
+É necessário estar no diretório antlr
+
+- Execute o comando `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` para permitir a execução de scripts temporariamente nessa sessão do PowerShell
+- Execute o comando `.\sintaxe_certo.ps1` para rodar o script

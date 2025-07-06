@@ -31,13 +31,13 @@ public class Main {
         // Cria o parser
         langParser parser = new langParser(tokens);
 
-        // // Adiciona listener de erro mais informativo
-        // parser.removeErrorListeners();
-        // parser.addErrorListener(new DiagnosticErrorListener());
-
-        // Em tese deve impedir a geração de árvores parciais se tiver erro de sintaxe
+        // Adiciona listener de erro mais informativo
         parser.removeErrorListeners();
-        parser.addErrorListener(new SyntaxErrorListener());
+        parser.addErrorListener(new DiagnosticErrorListener());
+
+        // // Em tese deve impedir a geração de árvores parciais se tiver erro de sintaxe
+        // parser.removeErrorListeners();
+        // parser.addErrorListener(new SyntaxErrorListener());
 
         // Executa a regra inicial (prog)
         ParseTree tree = parser.prog();

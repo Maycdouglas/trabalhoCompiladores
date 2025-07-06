@@ -1,17 +1,17 @@
 digraph AST {
-"Prog1500056228" [label="Prog"];
-"Fun1543727556" [label="Fun: main"];
-"Prog1500056228" -> "Fun1543727556";
-"CmdBlock736709391" [label="Block"];
-"Fun1543727556" -> "CmdBlock736709391";
-"CmdAssign225493257" [label="Assign"];
-"CmdBlock736709391" -> "CmdAssign225493257";
-"LValueId401424608" [label="LValueId: x"];
-"CmdAssign225493257" -> "LValueId401424608";
-"ExpBinOp1348949648" [label="Op: &&"];
-"CmdAssign225493257" -> "ExpBinOp1348949648";
-"ExpInt834133664" [label="Int: 10"];
-"ExpBinOp1348949648" -> "ExpInt834133664";
-"ExpInt2012232625" [label="Int: 10"];
-"ExpBinOp1348949648" -> "ExpInt2012232625";
+"Prog166239592" [label="Prog"];
+"Fun248609774" [label="Fun: main"];
+"Prog166239592" -> "Fun248609774";
+"CmdBlock708049632" [label="Block"];
+"Fun248609774" -> "CmdBlock708049632";
+"CmdAssign1887400018" [label="Assign"];
+"CmdBlock708049632" -> "CmdAssign1887400018";
+"LValueId285377351" [label="LValueId: x"];
+"CmdAssign1887400018" -> "LValueId285377351";
+"ExpBinOp344560770" [label="Op: &&"];
+"CmdAssign1887400018" -> "ExpBinOp344560770";
+"ExpInt559450121" [label="Int: 10"];
+"ExpBinOp344560770" -> "ExpInt559450121";
+"ExpInt242481580" [label="Int: 10"];
+"ExpBinOp344560770" -> "ExpInt242481580";
 }
