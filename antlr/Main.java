@@ -26,18 +26,30 @@ public class Main {
         langLexer lexer = new langLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         langParser parser = new langParser(tokens);
+
+        // Adiciona listener de erro personalizado
+        SyntaxErrorListener errorListener = new SyntaxErrorListener();
         parser.removeErrorListeners();
-        parser.addErrorListener(new SyntaxErrorListener());
+        parser.addErrorListener(errorListener);
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(errorListener);
 
         // Processamento e construção da AST
         ParseTree tree = parser.prog();
         System.out.println(tree.toStringTree(parser));
+
+        // Verifica se houve erro léxico ou sintático
+        if (errorListener.hasErrors()) {
+            System.err.println("Erros foram detectados. A AST não será gerada.");
+            return;
+        }
+
+        // Verifica se houve erro léxico ou sintático
         ASTBuilder visitor = new ASTBuilder();
         Prog ast = (Prog) visitor.visit(tree);
         System.out.println("AST criada com sucesso: " + ast);
 
         String nomeArquivoBase = new File(caminhoArquivo).getName().replaceFirst("[.][^.]+$", "");
-
         String nomeSaidaDot = outputDir + File.separator + nomeArquivoBase + ".dot";
 
         // Garante que o diretório de destino exista

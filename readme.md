@@ -35,7 +35,7 @@ Linux:
 1. `javac -cp ".;antlr-4.8-complete.jar" parser/*.java ast/*.java error/*.java Main.java`
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/errado/nonAssoc.lan`
 
-`java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/errado/attrCHAR.lan`
+`java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/errado/attrCHAR.lan images`
 
 Linux:
 
