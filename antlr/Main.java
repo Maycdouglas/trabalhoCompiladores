@@ -1,7 +1,6 @@
 import ast.*;
 import parser.*;
 import interpreter.*;
-import ast.ASTBuilder;
 import error.SyntaxErrorListener;
 
 import org.antlr.v4.runtime.*;
@@ -15,13 +14,13 @@ import java.nio.charset.StandardCharsets;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        if (args.length < 2) {
-            System.err.println("Uso: java Main <caminho do arquivo de entrada> <diretorio de saida>");
+        if (args.length == 0) {
+            System.err.println("Uso: java Main <caminho do arquivo de entrada> [diretorio de saida]");
             System.exit(1);
         }
 
         String caminhoArquivo = args[0];
-        String outputDir = args[1];
+        String outputDir = (args.length > 1) ? args[1] : "dotFiles";
 
         // Configuração do Lexer e Parser
         CharStream input = CharStreams.fromStream(new FileInputStream(caminhoArquivo), StandardCharsets.UTF_8);
@@ -51,11 +50,9 @@ public class Main {
         Prog ast = (Prog) visitor.visit(tree);
         System.out.println("AST criada com sucesso: " + ast);
 
-        
         // Interpretação
         InterpreterVisitor interpreter = new InterpreterVisitor();
         ast.accept(interpreter); // executa a interpretação
-
 
         String nomeArquivoBase = new File(caminhoArquivo).getName().replaceFirst("[.][^.]+$", "");
         String nomeSaidaDot = outputDir + File.separator + nomeArquivoBase + ".dot";
