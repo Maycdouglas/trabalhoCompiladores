@@ -42,8 +42,9 @@ public class InterpreterVisitor implements Visitor<Object> {
     @Override
     public Object visitCmdCall(CmdCall cmd) {
         return null;
-    
+
     }
+
     @Override
     public Object visitCmdIf(CmdIf cmd) {
         return null;
@@ -163,6 +164,22 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpUnaryOp(ExpUnaryOp exp) {
+        Object value = exp.exp.accept(this);
+        switch (exp.op) {
+            case "!":
+                if (value instanceof Boolean) {
+                    return !(Boolean) value;
+                }
+                throw new RuntimeException("Operador '!' só pode ser aplicado a booleanos.");
+            case "-":
+                if (value instanceof Integer) {
+                    return -(Integer) value;
+                }
+                if (value instanceof Float) {
+                    return -(Float) value;
+                }
+                throw new RuntimeException("Operador '-' só pode ser aplicado a números.");
+        }
         return null;
     }
 
