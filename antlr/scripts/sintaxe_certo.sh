@@ -18,7 +18,7 @@ for arquivo in "$ENTRADA_DIR"/*.lan; do
     echo "Executando: $arquivo"
 
     base=$(basename "$arquivo" .lan)
-    # O script define o CAMINHO COMPLETO do arquivo de saída
+    # Define as variáveis de caminho completo para uso DENTRO do script
     dot_file_path="$DOT_DIR/$base.dot"
     png_file_path="$PNG_DIR/$base.png"
     error_file_path="$ERROR_DIR/$base.error.txt"
@@ -26,10 +26,10 @@ for arquivo in "$ENTRADA_DIR"/*.lan; do
     rm -f "$dot_file_path" "$PNG_DIR/${base}_error.dot" "$png_file_path" "$error_file_path"
 
     # --- LINHA CRÍTICA ---
-    # Passa o caminho de entrada e o CAMINHO COMPLETO de saída para o Main
-    java -cp "$CP" Main "$arquivo" "$dot_file_path" > /dev/null 2> "$error_file_path"
+    # Passa o caminho de entrada e APENAS O DIRETÓRIO de saída para o Main
+    java -cp "$CP" Main "$arquivo" "$DOT_DIR" > /dev/null 2> "$error_file_path"
 
-    # O resto do script continua igual, usando as variáveis de caminho completo...
+    # O resto do script continua usando as variáveis de caminho completo
     if [ ! -f "$dot_file_path" ]; then
         echo "❌ AST não gerada para $base. Criando .dot com erro."
         echo "// erro na geração da AST" > "$PNG_DIR/${base}_error.dot"

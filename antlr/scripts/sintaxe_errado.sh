@@ -18,6 +18,7 @@ for arquivo in "$ENTRADA_DIR"/*.lan; do
     echo "Executando: $arquivo"
 
     base=$(basename "$arquivo" .lan)
+    # As variáveis de caminho completo são usadas apenas pelo script
     dot_file="$DOT_DIR/$base.dot"
     dot_file_error="$DOT_DIR/${base}_error.dot"
     png_file="$PNG_DIR/$base.png"
@@ -25,8 +26,8 @@ for arquivo in "$ENTRADA_DIR"/*.lan; do
 
     rm -f "$dot_file" "$dot_file_error" "$png_file" "$error_file"
 
-    # --- LINHA MODIFICADA ---
-    # Passa o diretório de saída ($DOT_DIR) como segundo argumento para o Main
+    # --- LINHA CORRIGIDA ---
+    # Passa o caminho do arquivo de entrada e o DIRETÓRIO de saída para o Main
     java -cp "$CP" Main "$arquivo" "$DOT_DIR" > /dev/null 2> "$error_file"
 
     if [ ! -f "$dot_file" ]; then
