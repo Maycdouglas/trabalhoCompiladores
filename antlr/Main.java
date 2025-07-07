@@ -1,7 +1,9 @@
 import ast.*;
 import parser.*;
+import interpreter.*;
 import ast.ASTBuilder;
 import error.SyntaxErrorListener;
+
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -48,6 +50,11 @@ public class Main {
         ASTBuilder visitor = new ASTBuilder();
         Prog ast = (Prog) visitor.visit(tree);
         System.out.println("AST criada com sucesso: " + ast);
+
+        
+        // Interpretação
+        Interpreter interpreter = new Interpreter();
+        interpreter.interpret(ast);
 
         String nomeArquivoBase = new File(caminhoArquivo).getName().replaceFirst("[.][^.]+$", "");
         String nomeSaidaDot = outputDir + File.separator + nomeArquivoBase + ".dot";
