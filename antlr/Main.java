@@ -53,8 +53,9 @@ public class Main {
 
         
         // Interpretação
-        Interpreter interpreter = new Interpreter();
-        interpreter.interpret(ast);
+        InterpreterVisitor interpreter = new InterpreterVisitor();
+        ast.accept(interpreter); // executa a interpretação
+
 
         String nomeArquivoBase = new File(caminhoArquivo).getName().replaceFirst("[.][^.]+$", "");
         String nomeSaidaDot = outputDir + File.separator + nomeArquivoBase + ".dot";

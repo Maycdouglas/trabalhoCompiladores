@@ -1,5 +1,6 @@
 package ast;
 
+import interpreter.Visitor;
 import java.util.List;
 
 public class DataRegular extends Data {
@@ -20,6 +21,11 @@ public class DataRegular extends Data {
             sb.append(d.toDot(id));
         }
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitDataRegular(this);
     }
 
 }

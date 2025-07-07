@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class ExpBinOp extends Exp {
     public final String op;
     public final Exp left;
@@ -20,6 +22,11 @@ public class ExpBinOp extends Exp {
         sb.append(left.toDot(id));
         sb.append(right.toDot(id));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitExpBinOp(this);
     }
 }
 

@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class ExpIndex extends Exp {
     public Exp target;
     public Exp index;
@@ -20,5 +22,10 @@ public class ExpIndex extends Exp {
         sb.append(index.toDot(id));
 
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitExpIndex(this);
     }
 }

@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class LValueField extends LValue {
     public final LValue target;
     public final String field;
@@ -17,5 +19,10 @@ public class LValueField extends LValue {
         sb.append(String.format("\"%s\" -> \"%s\";\n", parentId, idNode));
         sb.append(target.toDot(idNode));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitLValueField(this);
     }
 }

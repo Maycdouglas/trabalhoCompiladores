@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class CmdPrint extends Cmd implements DotPrintable {
     public final Exp value;
 
@@ -16,4 +18,10 @@ public class CmdPrint extends Cmd implements DotPrintable {
         sb.append(value.toDot(idNode));
         return sb.toString();
     }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitCmdPrint(this);
+    }
+
 }

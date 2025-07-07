@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class LValueIndex extends LValue {
     public final LValue target;
     public final Exp index;
@@ -18,5 +20,10 @@ public class LValueIndex extends LValue {
         sb.append(target.toDot(idNode));
         sb.append(index.toDot(idNode));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitLValueIndex(this);
     }
 }

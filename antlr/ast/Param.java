@@ -1,7 +1,9 @@
 package ast;
 
+import interpreter.Visitor;
+
 // Parâmetro
-public class Param implements DotPrintable {
+public class Param implements DotPrintable, ASTNode {
     public final String id;
     public final Type type;
 
@@ -18,5 +20,10 @@ public class Param implements DotPrintable {
         sb.append(String.format("\"%s\" -> \"%s\";\n", parentId, idNode));
         sb.append(type.toDot(idNode));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitParam(this);
     }
 }

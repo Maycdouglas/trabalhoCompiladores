@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class CmdRead extends Cmd implements DotPrintable {
     public final LValue lvalue;
 
@@ -15,5 +17,10 @@ public class CmdRead extends Cmd implements DotPrintable {
         sb.append(String.format("\"%s\" -> \"%s\";\n", parentId, id));
         sb.append(lvalue.toDot(id));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitCmdRead(this);
     }
 }

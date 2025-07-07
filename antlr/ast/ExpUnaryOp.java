@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class ExpUnaryOp extends Exp {
     public final String op;
     public final Exp exp;
@@ -17,5 +19,10 @@ public class ExpUnaryOp extends Exp {
         sb.append(String.format("\"%s\" -> \"%s\";\n", parentId, id));
         sb.append(exp.toDot(id));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitExpUnaryOp(this);
     }
 }

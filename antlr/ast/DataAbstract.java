@@ -1,5 +1,6 @@
 package ast;
 
+import interpreter.Visitor;
 import java.util.List;
 
 public class DataAbstract extends Data {
@@ -25,5 +26,10 @@ public class DataAbstract extends Data {
             sb.append(f.toDot(id));
         }
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitDataAbstract(this);
     }
 }

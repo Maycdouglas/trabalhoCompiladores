@@ -1,5 +1,6 @@
 package ast;
 
+import interpreter.Visitor;
 import java.util.List;
 
 // Função
@@ -32,5 +33,10 @@ public class Fun implements Def, DotPrintable {
             sb.append(((DotPrintable) body).toDot(idNode));
         }
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitFun(this);
     }
 }

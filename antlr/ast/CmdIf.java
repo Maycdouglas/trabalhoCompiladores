@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class CmdIf extends Cmd implements DotPrintable {
     public final Exp condition;
     public final Cmd thenBranch;
@@ -23,5 +25,10 @@ public class CmdIf extends Cmd implements DotPrintable {
         if (elseBranch != null)
             sb.append(((DotPrintable) elseBranch).toDot(id));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitCmdIf(this);
     }
 }

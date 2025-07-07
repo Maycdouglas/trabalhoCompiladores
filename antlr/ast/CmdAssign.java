@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class CmdAssign extends Cmd implements DotPrintable {
     public final LValue target;
     public final Exp expression;
@@ -18,6 +20,11 @@ public class CmdAssign extends Cmd implements DotPrintable {
         sb.append(target.toDot(id));
         sb.append(expression.toDot(id));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitCmdAssign(this);
     }
 }
 

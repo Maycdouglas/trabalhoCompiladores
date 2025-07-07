@@ -1,5 +1,6 @@
 package ast;
 
+import interpreter.Visitor;
 import java.util.List;
 
 public class ExpCall extends Exp {
@@ -21,5 +22,10 @@ public class ExpCall extends Exp {
             sb.append(arg.toDot(idNode));
         }
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitExpCall(this);
     }
 }

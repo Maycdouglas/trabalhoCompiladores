@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class ExpChar extends Exp {
     public final char value;
 
@@ -26,4 +28,8 @@ public class ExpChar extends Exp {
         return String.format("\"%s\" [label=\"Char: %s\"];\n\"%s\" -> \"%s\";\n", idNode, escaped, parentId, idNode);
     }
 
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitExpChar(this);
+    }
 }

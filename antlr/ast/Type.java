@@ -1,7 +1,9 @@
 package ast;
 
+import interpreter.Visitor;
+
 // Tipo base (simplificado)
-public class Type implements DotPrintable{
+public class Type implements DotPrintable, ASTNode{
     public final String baseType; // exemplo: Int, Bool, ou nome do tipo (TYID)
     public final int arrayDim;    // para representar [] (quantos níveis)
 
@@ -18,5 +20,10 @@ public class Type implements DotPrintable{
         sb.append(String.format("\"%s\" [label=\"Type: %s\"];\n", idNode, label));
         sb.append(String.format("\"%s\" -> \"%s\";\n", parentId, idNode));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitType(this);
     }
 }

@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class LValueId extends LValue {
     public final String id;
 
@@ -14,5 +16,10 @@ public class LValueId extends LValue {
         sb.append(String.format("\"%s\" [label=\"LValueId: %s\"];\n", idNode, id));
         sb.append(String.format("\"%s\" -> \"%s\";\n", parentId, idNode));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitLValueId(this);
     }
 }

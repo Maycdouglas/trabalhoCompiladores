@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class ExpField extends Exp {
     public Exp target;
     public String field;
@@ -23,5 +25,10 @@ public class ExpField extends Exp {
         sb.append(String.format("%s -> %s;\n", id, fieldId));
 
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitExpField(this);
     }
 }

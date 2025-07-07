@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class ItCondLabelled extends ItCond {
     public final String label;
     public final Exp expression;
@@ -17,5 +19,10 @@ public class ItCondLabelled extends ItCond {
         sb.append(String.format("\"%s\" -> \"%s\";\n", parentId, idNode));
         sb.append(expression.toDot(idNode));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitItCondLabelled(this);
     }
 }

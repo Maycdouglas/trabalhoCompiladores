@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class ExpCallIndexed extends Exp {
     public final ExpCall call;
     public final Exp index;
@@ -18,5 +20,10 @@ public class ExpCallIndexed extends Exp {
         sb.append(call.toDot(idNode));
         sb.append(index.toDot(idNode));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitExpCallIndexed(this);
     }
 }

@@ -1,15 +1,26 @@
 package ast;
 
-public class ExpInt extends Exp {
+import interpreter.Visitor;
+
+public class ExpInt extends Exp implements DotPrintable {
     public final int value;
 
     public ExpInt(int value) {
         this.value = value;
     }
 
+    public int getValue(){
+        return this.value;
+    }
+
     @Override
     public String toDot(String parentId) {
         String idNode = "ExpInt" + hashCode();
         return String.format("\"%s\" [label=\"Int: %d\"];\n\"%s\" -> \"%s\";\n", idNode, value, parentId, idNode);
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitExpInt(this);
     }
 }

@@ -1,5 +1,6 @@
 package ast;
 
+import interpreter.Visitor;
 import java.util.List;
 
 public class CmdCall extends Cmd implements DotPrintable {
@@ -26,5 +27,10 @@ public class CmdCall extends Cmd implements DotPrintable {
             sb.append(lval.toDot(idNode));
         }
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitCmdCall(this);
     }
 }

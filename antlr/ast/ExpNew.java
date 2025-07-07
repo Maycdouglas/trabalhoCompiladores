@@ -1,5 +1,7 @@
 package ast;
 
+import interpreter.Visitor;
+
 public class ExpNew extends Exp {
     public final Type type;
     public final Exp size; // pode ser null se não houver [exp]
@@ -19,5 +21,10 @@ public class ExpNew extends Exp {
         if (size != null)
             sb.append(size.toDot(id));
         return sb.toString();
+    }
+
+    @Override
+    public <T> T accept(Visitor<T> visitor) {
+        return visitor.visitExpNew(this);
     }
 }
