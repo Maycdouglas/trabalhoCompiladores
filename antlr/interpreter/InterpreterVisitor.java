@@ -47,6 +47,12 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdIf(CmdIf cmd) {
+        Object conditionValue = cmd.condition.accept(this);
+        if (conditionValue instanceof Boolean && (Boolean) conditionValue) {
+            cmd.thenBranch.accept(this);
+        } else if (cmd.elseBranch != null) {
+            cmd.elseBranch.accept(this);
+        }
         return null;
     }
 
@@ -104,12 +110,49 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpBinOp(ExpBinOp exp) {
-        return null;
+        Object left = exp.left.accept(this);
+        Object right = exp.right.accept(this);
+
+        // (Pode ser estendida para Float)
+        if (left instanceof Integer && right instanceof Integer) {
+            int l = (Integer) left;
+            int r = (Integer) right;
+            switch (exp.op) {
+                case "+":
+                    return l + r;
+                case "-":
+                    return l - r;
+                case "*":
+                    return l * r;
+                case "/":
+                    return l / r; // Divisão inteira
+                case "==":
+                    return l == r;
+                case "!=":
+                    return l != r;
+                case "<":
+                    return l < r;
+            }
+        }
+
+        // --- Lógica para operações com BOOLEANOS ---
+        if (left instanceof Boolean && right instanceof Boolean) {
+            boolean l = (Boolean) left;
+            boolean r = (Boolean) right;
+            switch (exp.op) {
+                case "&&":
+                    return l && r;
+            }
+        }
+
+        // --- Lançar erro se a operação não for suportada para os tipos ---
+        throw new RuntimeException("Operação binária não suportada para os tipos: "
+                + left.getClass().getSimpleName() + " " + exp.op + " " + right.getClass().getSimpleName());
     }
 
     @Override
     public Object visitExpBool(ExpBool exp) {
-        return null;
+        return exp.value;
     }
 
     @Override
