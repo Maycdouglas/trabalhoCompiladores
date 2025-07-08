@@ -197,7 +197,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpChar(ExpChar exp) {
-        return null;
+        return exp.value;
     }
 
     @Override
