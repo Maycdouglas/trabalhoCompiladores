@@ -222,7 +222,20 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpNew(ExpNew exp) {
-        return null;
+        if (exp.size != null) {
+            Object sizeValue = exp.size.accept(this);
+            if (sizeValue instanceof Integer) {
+                int size = (Integer) sizeValue;
+
+                Object[] array = new Object[size];
+
+                return array;
+            } else {
+                throw new RuntimeException("O tamanho de um novo array deve ser um inteiro.");
+            }
+        }
+
+        throw new RuntimeException("A operação 'new' para tipos de objeto ainda não foi implementada.");
     }
 
     @Override
