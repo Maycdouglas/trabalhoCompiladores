@@ -10,6 +10,24 @@ public class InterpreterVisitor implements Visitor<Object> {
     private final Map<String, Object> memory = new HashMap<>();
     private final Scanner scanner = new Scanner(System.in);
 
+    private Object visitLvalExprFromLValue(LValue lv) {
+        if (lv instanceof LValueId) {
+            return memory.get(((LValueId) lv).id);
+        } else if (lv instanceof LValueIndex) {
+            LValueIndex idx = (LValueIndex) lv;
+            Object baseArray = visitLvalExprFromLValue(idx.target);
+            if (baseArray instanceof Object[]) {
+                Object indexObject = idx.index.accept(this);
+                if (indexObject instanceof Integer) {
+                    return ((Object[]) baseArray)[(Integer) indexObject];
+                }
+            }
+        } else if (lv instanceof LValueField) {
+            // Lógica para campos de struct virá aqui no futuro
+        }
+        throw new RuntimeException("Não é possível avaliar o LValue: " + lv.getClass().getSimpleName());
+    }
+
     public Object evalExp(Exp exp) {
         if (exp instanceof ExpInt) {
             return ((ExpInt) exp).getValue();
@@ -30,9 +48,37 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdAssign(CmdAssign cmd) {
-        Object value = cmd.expression.accept(this);
-        String varName = extractVarName(cmd.target);
-        memory.put(varName, value);
+        Object valueToAssign = cmd.expression.accept(this);
+
+        // --- LÓGICA PARA ATRIBUIÇÃO EM ARRAY ---
+        if (cmd.target instanceof LValueIndex) {
+            LValueIndex lvalIndex = (LValueIndex) cmd.target;
+
+            // Avalia o objeto base (deve ser um array)
+            Object arrayObject = visitLvalExprFromLValue(lvalIndex.target);
+
+            if (arrayObject instanceof Object[]) {
+                // Avalia a expressão do índice
+                Object indexObject = lvalIndex.index.accept(this);
+                if (indexObject instanceof Integer) {
+                    int index = (Integer) indexObject;
+                    ((Object[]) arrayObject)[index] = valueToAssign; // Atribui o valor no índice
+                } else {
+                    throw new RuntimeException("Índice de array deve ser um inteiro.");
+                }
+            } else {
+                throw new RuntimeException("Tentando indexar um valor que não é um array.");
+            }
+        }
+        // --- LÓGICA ANTIGA PARA VARIÁVEIS SIMPLES ---
+        else if (cmd.target instanceof LValueId) {
+            String varName = ((LValueId) cmd.target).id;
+            memory.put(varName, valueToAssign);
+        } else {
+            throw new UnsupportedOperationException(
+                    "Tipo de atribuição não suportado: " + cmd.target.getClass().getSimpleName());
+        }
+
         return null;
     }
 
@@ -212,7 +258,18 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpIndex(ExpIndex exp) {
-        return null;
+        Object arrayObject = exp.target.accept(this);
+
+        if (arrayObject instanceof Object[]) {
+            Object indexObject = exp.index.accept(this);
+            if (indexObject instanceof Integer) {
+                int index = (Integer) indexObject;
+                return ((Object[]) arrayObject)[index]; // Retorna o valor do índice
+            } else {
+                throw new RuntimeException("Índice de array deve ser um inteiro.");
+            }
+        }
+        throw new RuntimeException("Tentando indexar um valor que não é um array.");
     }
 
     @Override
