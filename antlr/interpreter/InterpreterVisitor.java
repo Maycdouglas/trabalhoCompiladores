@@ -3,10 +3,12 @@ package interpreter;
 import ast.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 
 public class InterpreterVisitor implements Visitor<Object> {
 
     private final Map<String, Object> memory = new HashMap<>();
+    private final Scanner scanner = new Scanner(System.in);
 
     public Object evalExp(Exp exp) {
         if (exp instanceof ExpInt) {
@@ -82,6 +84,18 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdRead(CmdRead cmd) {
+        String varName = extractVarName(cmd.lvalue);
+
+        System.out.print(" entrada> ");
+
+        if (scanner.hasNextInt()) {
+            int value = scanner.nextInt();
+            memory.put(varName, value);
+        } else {
+            String input = scanner.next();
+            System.err.println(
+                    "Aviso: Entrada '" + input + "' não é um inteiro. Variável '" + varName + "' não foi atualizada.");
+        }
         return null;
     }
 
