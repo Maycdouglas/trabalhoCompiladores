@@ -139,21 +139,24 @@ public class InterpreterVisitor implements Visitor<Object> {
         Object left = exp.left.accept(this);
         Object right = exp.right.accept(this);
 
-        // (Pode ser estendida para Float)
-        if (left instanceof Integer && right instanceof Integer) {
-            int l = (Integer) left;
-            int r = (Integer) right;
+        if (left instanceof Number && right instanceof Number) {
+            double l = ((Number) left).doubleValue();
+            double r = ((Number) right).doubleValue();
+
+            // Retorna Float se qualquer um dos operandos for Float
+            boolean isFloat = (left instanceof Float || right instanceof Float);
+
             switch (exp.op) {
                 case "+":
-                    return l + r;
+                    return isFloat ? (l + r) : (int) (l + r);
                 case "-":
-                    return l - r;
+                    return isFloat ? (l - r) : (int) (l - r);
                 case "*":
-                    return l * r;
+                    return isFloat ? (l * r) : (int) (l * r);
                 case "/":
                     return l / r;
                 case "%":
-                    return l % r;
+                    return isFloat ? (l % r) : (int) (l % r);
                 case "==":
                     return l == r;
                 case "!=":
@@ -163,7 +166,7 @@ public class InterpreterVisitor implements Visitor<Object> {
             }
         }
 
-        // --- Lógica para operações com BOOLEANOS ---
+        // --- Lógica para BOOLEANOS ---
         if (left instanceof Boolean && right instanceof Boolean) {
             boolean l = (Boolean) left;
             boolean r = (Boolean) right;
@@ -173,7 +176,6 @@ public class InterpreterVisitor implements Visitor<Object> {
             }
         }
 
-        // --- Lançar erro se a operação não for suportada para os tipos ---
         throw new RuntimeException("Operação binária não suportada para os tipos: "
                 + left.getClass().getSimpleName() + " " + exp.op + " " + right.getClass().getSimpleName());
     }
@@ -205,7 +207,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpFloat(ExpFloat exp) {
-        return null;
+        return exp.value;
     }
 
     @Override
