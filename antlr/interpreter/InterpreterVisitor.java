@@ -36,6 +36,9 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdBlock(CmdBlock cmd) {
+        for (Cmd commandInBlock : cmd.cmds) {
+            commandInBlock.accept(this); // Delega a execução para o comando específico
+        }
         return null;
     }
 
