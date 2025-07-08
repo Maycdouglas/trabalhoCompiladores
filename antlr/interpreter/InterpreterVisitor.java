@@ -61,6 +61,15 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdIterate(CmdIterate cmd) {
+        while (true) {
+            Object conditionValue = cmd.condition.accept(this);
+
+            if (conditionValue instanceof Boolean && (Boolean) conditionValue) {
+                cmd.body.accept(this);
+            } else {
+                break;
+            }
+        }
         return null;
     }
 
@@ -205,7 +214,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpParen(ExpParen exp) {
-        return null;
+        return exp.exp.accept(this);
     }
 
     @Override
@@ -244,17 +253,18 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitItCond(ItCond itCond) {
-        return null;
+        // Delega a chamada para o tipo específico de ItCond
+        return itCond.accept(this);
     }
 
     @Override
     public Object visitItCondExpr(ItCondExpr itCondExpr) {
-        return null;
+        return itCondExpr.expression.accept(this);
     }
 
     @Override
     public Object visitItCondLabelled(ItCondLabelled itCondLabelled) {
-        return null;
+        return itCondLabelled.expression.accept(this);
     }
 
     @Override
