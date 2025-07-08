@@ -1,4 +1,58 @@
+-- teste_geral.lan (versão corrigida)
+-- Este arquivo testa todas as funcionalidades implementadas no interpretador.
+
 main() {
-  x = 10;
-  print x;
+  {-
+    ETAPA 1: Testando 'read' e o início do controle de fluxo.
+  -}
+  print 1001; -- Sinaliza início do programa
+  iteracoes = 0;
+  read iteracoes; -- Peça ao usuário para digitar um número (ex: 4)
+
+  -- Criação de um array para armazenar resultados
+  resultados = new Int[5];
+  
+  contador = 0;
+  flag = true;
+
+  {-
+    ETAPA 2: Loop principal para testar operadores e condicionais.
+  -}
+  iterate (contador < iteracoes) {
+    print contador;
+
+    temp = (contador + 5) * 2 % 3;
+    
+    if (temp == 0 && flag) {
+      print 111;
+      resultados[contador] = 111;
+    } else {
+      print 222;
+      resultados[contador] = 222;
+    }
+
+    if ((contador + 1) == iteracoes) {
+      flag = !flag;
+    }
+
+    contador = contador + 1;
+  }
+  
+  {-
+    ETAPA 3: Verificação final e teste dos resultados no array.
+  -}
+  print 9999; -- Sinaliza o fim do loop
+  
+  print flag; -- Se o usuário digitou 4, a flag deve ser 'false'
+
+  -- CORRIGIDO: Usa '!=' em vez de '>'
+  if (iteracoes != 1 && iteracoes != 0) {
+    print resultados[1];
+  }
+  
+  -- Teste final com float e char
+  val_float = 100.5;
+  letra = 'Z';
+  print val_float;
+  print letra;
 }
