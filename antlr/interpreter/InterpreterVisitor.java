@@ -10,6 +10,11 @@ public class InterpreterVisitor implements Visitor<Object> {
     private final Map<String, Object> memory = new HashMap<>();
     private final Scanner scanner = new Scanner(System.in);
 
+    /*
+     * Método para avaliar expressões de LValue, como variáveis e arrays.
+     * Esse método é temporário e deve ser substituído por uma lógica mais robusta
+     * da memória
+     */
     private Object visitLvalExprFromLValue(LValue lv) {
         if (lv instanceof LValueId) {
             return memory.get(((LValueId) lv).id);
