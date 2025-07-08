@@ -137,7 +137,9 @@ public class InterpreterVisitor implements Visitor<Object> {
                 case "*":
                     return l * r;
                 case "/":
-                    return l / r; // Divisão inteira
+                    return l / r;
+                case "%":
+                    return l % r;
                 case "==":
                     return l == r;
                 case "!=":
