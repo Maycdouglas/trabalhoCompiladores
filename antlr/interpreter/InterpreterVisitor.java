@@ -182,7 +182,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExp(Exp exp) {
-        return null;
+        return exp.accept(this);
     }
 
     @Override
@@ -191,39 +191,60 @@ public class InterpreterVisitor implements Visitor<Object> {
         Object right = exp.right.accept(this);
 
         if (left instanceof Number && right instanceof Number) {
-            double l = ((Number) left).doubleValue();
-            double r = ((Number) right).doubleValue();
+            boolean isFloat = (left instanceof Float || left instanceof Double ||
+                    right instanceof Float || right instanceof Double);
 
-            // Retorna Float se qualquer um dos operandos for Float
-            boolean isFloat = (left instanceof Float || right instanceof Float);
-
-            switch (exp.op) {
-                case "+":
-                    return isFloat ? (l + r) : (int) (l + r);
-                case "-":
-                    return isFloat ? (l - r) : (int) (l - r);
-                case "*":
-                    return isFloat ? (l * r) : (int) (l * r);
-                case "/":
-                    return l / r;
-                case "%":
-                    return isFloat ? (l % r) : (int) (l % r);
-                case "==":
-                    return l == r;
-                case "!=":
-                    return l != r;
-                case "<":
-                    return l < r;
+            if (isFloat) {
+                double l = ((Number) left).doubleValue();
+                double r = ((Number) right).doubleValue();
+                switch (exp.op) {
+                    case "+":
+                        return l + r;
+                    case "-":
+                        return l - r;
+                    case "*":
+                        return l * r;
+                    case "/":
+                        return l / r;
+                    case "%":
+                        return l % r;
+                    case "==":
+                        return Boolean.valueOf(l == r);
+                    case "!=":
+                        return Boolean.valueOf(l != r);
+                    case "<":
+                        return Boolean.valueOf(l < r);
+                }
+            } else {
+                int l = ((Number) left).intValue();
+                int r = ((Number) right).intValue();
+                switch (exp.op) {
+                    case "+":
+                        return l + r;
+                    case "-":
+                        return l - r;
+                    case "*":
+                        return l * r;
+                    case "/":
+                        return l / r;
+                    case "%":
+                        return l % r;
+                    case "==":
+                        return Boolean.valueOf(l == r);
+                    case "!=":
+                        return Boolean.valueOf(l != r);
+                    case "<":
+                        return Boolean.valueOf(l < r);
+                }
             }
         }
 
-        // --- Lógica para BOOLEANOS ---
         if (left instanceof Boolean && right instanceof Boolean) {
             boolean l = (Boolean) left;
             boolean r = (Boolean) right;
             switch (exp.op) {
                 case "&&":
-                    return l && r;
+                    return Boolean.valueOf(l && r);
             }
         }
 
