@@ -1,3 +1,8 @@
+/* Feito por:
+ FREDERICO DÔNDICI GAMA VIEIRA - 202165037AC
+ MAYCON DOUGLAS HENRIQUE DA SILVA GOMES - 202065570C
+*/
+
 import ast.*;
 import parser.*;
 import interpreter.*;
