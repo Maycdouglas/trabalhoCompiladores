@@ -17,6 +17,8 @@ public class InterpreterVisitor implements Visitor<Object> {
     private final Map<String, Fun> functionDefinitions = new HashMap<>();
     private final Scanner scanner = new Scanner(System.in);
 
+    private Value returnValue = null;
+
     public InterpreterVisitor() {
         memoryStack.push(new HashMap<>());
     }
@@ -145,6 +147,9 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdReturn(CmdReturn cmd) {
+        if (!cmd.values.isEmpty()) {
+            this.returnValue = (Value) cmd.values.get(0).accept(this);
+        }
         return null;
     }
 
@@ -248,7 +253,30 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpCall(ExpCall exp) {
-        return null;
+        Fun funDef = functionDefinitions.get(exp.id);
+        if (funDef == null) {
+            throw new RuntimeException("Função '" + exp.id + "' não definida.");
+        }
+
+        if (funDef.params.size() != exp.args.size()) {
+            throw new RuntimeException("Número incorreto de argumentos para a função '" + exp.id + "'.");
+        }
+
+        Map<String, Value> newScope = new HashMap<>();
+        for (int i = 0; i < funDef.params.size(); i++) {
+            String paramName = funDef.params.get(i).id;
+            Value argValue = (Value) exp.args.get(i).accept(this);
+            newScope.put(paramName, argValue);
+        }
+
+        memoryStack.push(newScope);
+
+        this.returnValue = null;
+        funDef.body.accept(this);
+
+        memoryStack.pop();
+
+        return this.returnValue;
     }
 
     @Override
