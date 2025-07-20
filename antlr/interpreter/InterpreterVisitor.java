@@ -14,6 +14,7 @@ import java.util.Stack;
 public class InterpreterVisitor implements Visitor<Object> {
 
     private final Stack<Map<String, Value>> memoryStack = new Stack<>();
+    private final Map<String, Fun> functionDefinitions = new HashMap<>();
     private final Scanner scanner = new Scanner(System.in);
 
     public InterpreterVisitor() {
@@ -65,8 +66,30 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdCall(CmdCall cmd) {
-        return null;
+        Fun funDef = functionDefinitions.get(cmd.id);
+        if (funDef == null) {
+            throw new RuntimeException("Função '" + cmd.id + "' não definida.");
+        }
 
+        if (funDef.params.size() != cmd.args.size()) {
+            throw new RuntimeException("Número incorreto de argumentos para a função '" + cmd.id + "'.");
+        }
+
+        Map<String, Value> newScope = new HashMap<>();
+
+        for (int i = 0; i < funDef.params.size(); i++) {
+            String paramName = funDef.params.get(i).id;
+            Value argValue = (Value) cmd.args.get(i).accept(this); // Avalia o argumento
+            newScope.put(paramName, argValue);
+        }
+
+        memoryStack.push(newScope);
+
+        funDef.body.accept(this);
+
+        memoryStack.pop();
+
+        return null;
     }
 
     @Override
@@ -322,6 +345,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitFun(Fun fun) {
+        functionDefinitions.put(fun.id, fun);
         return null;
     }
 
@@ -369,21 +393,23 @@ public class InterpreterVisitor implements Visitor<Object> {
     @Override
     public Object visitProg(Prog prog) {
         for (Def def : prog.definitions) {
-            if (def instanceof Fun fun && fun.id.equals("main")) {
-                if (fun.body instanceof CmdBlock block) {
-                    for (Cmd cmd : block.cmds) {
-                        cmd.accept(this);
-                    }
-                }
-                break;
+            if (def instanceof Fun) {
+                visitFun((Fun) def);
             }
         }
+
+        Fun mainFunction = functionDefinitions.get("main");
+        if (mainFunction != null) {
+            mainFunction.body.accept(this);
+        } else {
+            throw new RuntimeException("Função 'main' não definida no programa.");
+        }
+
         return null;
     }
 
     @Override
     public Object visitType(ast.Type type) {
-        // Pode apenas retornar null se não for necessário interpretar tipos ainda
         return null;
     }
 
