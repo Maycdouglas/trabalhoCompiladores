@@ -33,21 +33,34 @@ public class InterpreterVisitor implements Visitor<Object> {
         return null;
     }
 
+    private Value visitLvalExprFromLValue(LValue lv) {
+        if (lv instanceof LValueId) {
+            return (Value) currentScope().get(((LValueId) lv).id);
+        }
+        if (lv instanceof LValueField) {
+            Value target = visitLvalExprFromLValue(((LValueField) lv).target);
+            if (target instanceof DataValue) {
+                return ((DataValue) target).getField(((LValueField) lv).field);
+            }
+        }
+        // Adicionar lógica para LValueIndex se necessário no futuro
+        throw new RuntimeException("Não é possível avaliar o LValue: " + lv.getClass().getSimpleName());
+    }
+
     @Override
     public Object visitCmdAssign(CmdAssign cmd) {
         Value valueToAssign = (Value) cmd.expression.accept(this);
 
         if (cmd.target instanceof LValueIndex) {
-            LValueIndex lvalIndex = (LValueIndex) cmd.target;
-            String arrayName = extractVarName(lvalIndex.target);
-            Value arrayVal = (Value) currentScope().get(arrayName);
-            Value indexVal = (Value) lvalIndex.index.accept(this);
+        } else if (cmd.target instanceof LValueField) {
+            LValueField lvalField = (LValueField) cmd.target;
 
-            if (arrayVal instanceof ArrayValue && indexVal instanceof IntValue) {
-                int index = ((IntValue) indexVal).getValue();
-                ((ArrayValue) arrayVal).set(index, valueToAssign);
+            Value targetObject = (Value) visitLvalExprFromLValue(lvalField.target);
+
+            if (targetObject instanceof DataValue) {
+                ((DataValue) targetObject).setField(lvalField.field, valueToAssign);
             } else {
-                throw new RuntimeException("Atribuição inválida em array.");
+                throw new RuntimeException("Tentativa de aceder a um campo de um valor que não é um 'data'.");
             }
         } else if (cmd.target instanceof LValueId) {
             String varName = ((LValueId) cmd.target).id;
@@ -293,7 +306,13 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpField(ExpField exp) {
-        return null;
+        Value target = (Value) exp.target.accept(this);
+
+        if (target instanceof DataValue) {
+            return ((DataValue) target).getField(exp.field);
+        }
+
+        throw new RuntimeException("Tentativa de aceder a um campo de um valor que não é um 'data'.");
     }
 
     @Override
