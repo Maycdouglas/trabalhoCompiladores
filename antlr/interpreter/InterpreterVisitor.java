@@ -15,6 +15,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     private final Stack<Map<String, Value>> memoryStack = new Stack<>();
     private final Map<String, Fun> functionDefinitions = new HashMap<>();
+    private final Map<String, Data> dataDefinitions = new HashMap<>();
     private final Scanner scanner = new Scanner(System.in);
 
     private Value returnValue = null;
@@ -165,6 +166,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitDataRegular(DataRegular data) {
+        dataDefinitions.put(data.name, data);
         return null;
     }
 
