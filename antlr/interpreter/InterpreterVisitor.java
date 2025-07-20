@@ -322,15 +322,19 @@ public class InterpreterVisitor implements Visitor<Object> {
     public Object visitExpNew(ExpNew exp) {
         if (exp.size != null) {
             Value sizeValue = (Value) exp.size.accept(this);
-
             if (sizeValue instanceof IntValue) {
-                int size = ((IntValue) sizeValue).getValue();
-                return new ArrayValue(size);
-            } else {
-                throw new RuntimeException("O tamanho de um novo array deve ser um inteiro.");
+                return new ArrayValue(((IntValue) sizeValue).getValue());
             }
+            throw new RuntimeException("O tamanho de um novo array deve ser um inteiro.");
         }
-        throw new RuntimeException("A operação 'new' para tipos de objeto ainda não foi implementada.");
+
+        String typeName = exp.type.baseType;
+        if (dataDefinitions.containsKey(typeName)) {
+            DataRegular dataDef = (DataRegular) dataDefinitions.get(typeName);
+            return new DataValue(dataDef);
+        }
+
+        throw new RuntimeException("Tipo '" + typeName + "' não definido para a operação 'new'.");
     }
 
     @Override
@@ -425,6 +429,8 @@ public class InterpreterVisitor implements Visitor<Object> {
         for (Def def : prog.definitions) {
             if (def instanceof Fun) {
                 visitFun((Fun) def);
+            } else if (def instanceof DataRegular) {
+                visitDataRegular((DataRegular) def);
             }
         }
 
