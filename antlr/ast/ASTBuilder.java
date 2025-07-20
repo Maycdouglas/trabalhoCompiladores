@@ -58,19 +58,19 @@ public class ASTBuilder extends langBaseVisitor<Object> {
     public DataRegular visitDataRegular(langParser.DataRegularContext ctx) {
         String name = ctx.TYID().getText();
         List<Decl> declarations = new ArrayList<>();
-        for (var declCtx : ctx.decl()){
+        for (var declCtx : ctx.decl()) {
             declarations.add((Decl) visit(declCtx));
         }
         return new DataRegular(name, declarations);
     }
 
     @Override
-    public DataAbstract visitDataAbstract(langParser.DataAbstractContext ctx){
+    public DataAbstract visitDataAbstract(langParser.DataAbstractContext ctx) {
         String name = ctx.TYID().getText();
         List<Decl> declarations = new ArrayList<>();
         List<Fun> functions = new ArrayList<>();
 
-        for (var child : ctx.children){
+        for (var child : ctx.children) {
             if (child instanceof langParser.DeclContext)
                 declarations.add((Decl) visit(child));
             else if (child instanceof langParser.FunContext)
@@ -81,11 +81,11 @@ public class ASTBuilder extends langBaseVisitor<Object> {
     }
 
     @Override
-    public Fun visitFun(langParser.FunContext ctx){
+    public Fun visitFun(langParser.FunContext ctx) {
         String name = ctx.ID().getText();
 
         List<Param> params = new ArrayList<>();
-        if(ctx.params() != null)
+        if (ctx.params() != null)
             params = (List<Param>) visit(ctx.params());
 
         List<Type> returnTypes = ctx.retTypes() != null ? visitRetTypes(ctx.retTypes()) : new ArrayList<>();
@@ -115,17 +115,22 @@ public class ASTBuilder extends langBaseVisitor<Object> {
 
     @Override
     public Cmd visitCmd(langParser.CmdContext ctx) {
-        if (ctx.block() != null) return (Cmd) visit(ctx.block());
-        if (ctx.IF() != null && ctx.ELSE() != null) return new CmdIf((Exp) visit(ctx.exp(0)), (Cmd) visit(ctx.cmd(0)), (Cmd) visit(ctx.cmd(1)));
+        if (ctx.block() != null)
+            return (Cmd) visit(ctx.block());
+        if (ctx.IF() != null && ctx.ELSE() != null)
+            return new CmdIf((Exp) visit(ctx.exp(0)), (Cmd) visit(ctx.cmd(0)), (Cmd) visit(ctx.cmd(1)));
         if (ctx.IF() != null) {
             Exp cond = (Exp) visit(ctx.exp(0));
             Cmd thenBranch = (Cmd) visit(ctx.cmd(0));
             Cmd elseBranch = ctx.ELSE() != null ? (Cmd) visit(ctx.cmd(1)) : null;
             return new CmdIf(cond, thenBranch, elseBranch);
         }
-        if (ctx.ITERATE() != null) return new CmdIterate((ItCond) visit(ctx.itcond()), (Cmd) visit(ctx.cmd(0)));
-        if (ctx.READ() != null) return new CmdRead((LValue) visit(ctx.lvalue(0)));
-        if (ctx.PRINT() != null) return new CmdPrint((Exp) visit(ctx.exp(0)));
+        if (ctx.ITERATE() != null)
+            return new CmdIterate((ItCond) visit(ctx.itcond()), (Cmd) visit(ctx.cmd(0)));
+        if (ctx.READ() != null)
+            return new CmdRead((LValue) visit(ctx.lvalue(0)));
+        if (ctx.PRINT() != null)
+            return new CmdPrint((Exp) visit(ctx.exp(0)));
         if (ctx.RETURN() != null) {
             List<Exp> exps = new ArrayList<>();
             for (var e : ctx.exp()) {
@@ -133,11 +138,12 @@ public class ASTBuilder extends langBaseVisitor<Object> {
             }
             return new CmdReturn(exps);
         }
-        if (ctx.ASSIGN() != null) return new CmdAssign((LValue) visit(ctx.lvalue(0)), (Exp) visit(ctx.exp(0)));
+        if (ctx.ASSIGN() != null)
+            return new CmdAssign((LValue) visit(ctx.lvalue(0)), (Exp) visit(ctx.exp(0)));
         if (ctx.ID() != null && ctx.LANGLE() == null) {
             String id = ctx.ID().getText();
             List<Exp> args = ctx.exps() != null ? (List<Exp>) visit(ctx.exps()) : new ArrayList<>();
-            List<LValue> rets = new ArrayList<>();  // sem valores de retorno nesse caso
+            List<LValue> rets = new ArrayList<>(); // sem valores de retorno nesse caso
             return new CmdCall(id, args, rets);
         }
         if (ctx.ID() != null && ctx.LANGLE() != null) {
@@ -162,7 +168,7 @@ public class ASTBuilder extends langBaseVisitor<Object> {
         return new CmdBlock(cmds);
     }
 
-     @Override
+    @Override
     public ItCond visitCondLabelled(langParser.CondLabelledContext ctx) {
         return new ItCondLabelled(ctx.ID().getText(), (Exp) visit(ctx.exp()));
     }
@@ -214,20 +220,26 @@ public class ASTBuilder extends langBaseVisitor<Object> {
         String inner = text.substring(1, text.length() - 1); // remove as aspas simples
 
         switch (inner) {
-            case "\\n": return '\n';
-            case "\\t": return '\t';
-            case "\\r": return '\r';
-            case "\\'": return '\'';
-            case "\\\\": return '\\';
+            case "\\n":
+                return '\n';
+            case "\\t":
+                return '\t';
+            case "\\r":
+                return '\r';
+            case "\\'":
+                return '\'';
+            case "\\\\":
+                return '\\';
             default:
-                if (inner.length() == 1) return inner.charAt(0);
+                if (inner.length() == 1)
+                    return inner.charAt(0);
                 throw new RuntimeException("Caractere desconhecido: " + inner);
         }
     }
 
     @Override
     public Exp visitCharExpr(langParser.CharExprContext ctx) {
-        String text = ctx.CHAR().getText();  // exemplo: "'\\n'"
+        String text = ctx.CHAR().getText(); // exemplo: "'\\n'"
         char parsed = parseCharLiteral(text);
         return new ExpChar(parsed);
 
@@ -262,7 +274,6 @@ public class ASTBuilder extends langBaseVisitor<Object> {
         }
     }
 
-
     @Override
     public Exp visitLvalExpr(langParser.LvalExprContext ctx) {
         LValue lv = (LValue) visit(ctx.lvalue());
@@ -271,15 +282,16 @@ public class ASTBuilder extends langBaseVisitor<Object> {
             return new ExpVar(((LValueId) lv).id);
         } else if (lv instanceof LValueIndex) {
             LValueIndex idx = (LValueIndex) lv;
-            return new ExpIndex((Exp) visitLvalExprFromLValue(idx.target), idx.index); // cria uma Exp para o objeto base
+            return new ExpIndex((Exp) visitLvalExprFromLValue(idx.target), idx.index); // cria uma Exp para o objeto
+                                                                                       // base
         } else if (lv instanceof LValueField) {
             LValueField fld = (LValueField) lv;
-            return new ExpField((Exp) visitLvalExprFromLValue(fld.target), fld.field); // cria uma Exp para o objeto base
+            return new ExpField((Exp) visitLvalExprFromLValue(fld.target), fld.field); // cria uma Exp para o objeto
+                                                                                       // base
         } else {
             throw new RuntimeException("Unsupported LValue type: " + lv.getClass().getSimpleName());
         }
     }
-
 
     @Override
     public Exp visitParenExpr(langParser.ParenExprContext ctx) {
@@ -294,15 +306,22 @@ public class ASTBuilder extends langBaseVisitor<Object> {
     }
 
     @Override
+    public Exp visitCallExpr(langParser.CallExprContext ctx) {
+        String id = ctx.ID().getText();
+        List<Exp> args = ctx.exps() != null ? (List<Exp>) visit(ctx.exps()) : new ArrayList<>();
+        return new ExpCall(id, args);
+    }
+
+    @Override
     public Exp visitCallIndexedExpr(langParser.CallIndexedExprContext ctx) {
         String id = ctx.ID().getText();
         List<Exp> args = ctx.exps() != null ? (List<Exp>) visit(ctx.exps()) : new ArrayList<>();
         Exp index = (Exp) visit(ctx.exp());
-        
+
         ExpCall call = new ExpCall(id, args);
         return new ExpCallIndexed(call, index);
     }
-    
+
     @Override
     public Exp visitNotExpr(langParser.NotExprContext ctx) {
         return new ExpUnaryOp("!", (Exp) visit(ctx.expMul()));

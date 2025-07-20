@@ -1,7 +1,8 @@
 /* Feito por:
  FREDERICO DÔNDICI GAMA VIEIRA - 202165037AC
- MAYCON DOUGLAS HENRIQUE DA SILVA GOMES - 202065570C
-*/
+ MAYCON DOUGLAS HENRIQUE DA SILVA GOMES -
+ 202065570C
+ */
 
 grammar lang;
 
@@ -162,6 +163,7 @@ expPrimary:
 	lvalue										# LvalExpr
 	| LPAREN exp RPAREN							# ParenExpr
 	| NEW type (LBRACK exp RBRACK)?				# NewExpr
+	| ID LPAREN exps? RPAREN					# CallExpr
 	| ID LPAREN exps? RPAREN LBRACK exp RBRACK	# CallIndexedExpr
 	| TRUE										# TrueExpr
 	| FALSE										# FalseExpr
