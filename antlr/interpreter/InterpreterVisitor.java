@@ -58,35 +58,25 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdAssign(CmdAssign cmd) {
-        Object valueToAssign = cmd.expression.accept(this);
+        Value valueToAssign = (Value) cmd.expression.accept(this);
 
-        // --- LÓGICA PARA ATRIBUIÇÃO EM ARRAY ---
         if (cmd.target instanceof LValueIndex) {
             LValueIndex lvalIndex = (LValueIndex) cmd.target;
+            String arrayName = extractVarName(lvalIndex.target);
+            Value arrayVal = (Value) memory.get(arrayName);
+            Value indexVal = (Value) lvalIndex.index.accept(this);
 
-            // Avalia o objeto base (deve ser um array)
-            Object arrayObject = visitLvalExprFromLValue(lvalIndex.target);
-
-            if (arrayObject instanceof Object[]) {
-                // Avalia a expressão do índice
-                Object indexObject = lvalIndex.index.accept(this);
-                if (indexObject instanceof Integer) {
-                    int index = (Integer) indexObject;
-                    ((Object[]) arrayObject)[index] = valueToAssign; // Atribui o valor no índice
-                } else {
-                    throw new RuntimeException("Índice de array deve ser um inteiro.");
-                }
+            if (arrayVal instanceof ArrayValue && indexVal instanceof IntValue) {
+                int index = ((IntValue) indexVal).getValue();
+                ((ArrayValue) arrayVal).set(index, valueToAssign);
             } else {
-                throw new RuntimeException("Tentando indexar um valor que não é um array.");
+                throw new RuntimeException("Atribuição inválida em array.");
             }
-        }
-        // --- LÓGICA ANTIGA PARA VARIÁVEIS SIMPLES ---
-        else if (cmd.target instanceof LValueId) {
+        } else if (cmd.target instanceof LValueId) {
             String varName = ((LValueId) cmd.target).id;
             memory.put(varName, valueToAssign);
         } else {
-            throw new UnsupportedOperationException(
-                    "Tipo de atribuição não suportado: " + cmd.target.getClass().getSimpleName());
+            throw new UnsupportedOperationException("Tipo de atribuição não suportado.");
         }
 
         return null;
@@ -95,7 +85,7 @@ public class InterpreterVisitor implements Visitor<Object> {
     @Override
     public Object visitCmdBlock(CmdBlock cmd) {
         for (Cmd commandInBlock : cmd.cmds) {
-            commandInBlock.accept(this); // Delega a execução para o comando específico
+            commandInBlock.accept(this);
         }
         return null;
     }
@@ -108,8 +98,8 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdIf(CmdIf cmd) {
-        Object conditionValue = cmd.condition.accept(this);
-        if (conditionValue instanceof Boolean && (Boolean) conditionValue) {
+        Value condition = (Value) cmd.condition.accept(this);
+        if (condition instanceof BoolValue && ((BoolValue) condition).getValue()) {
             cmd.thenBranch.accept(this);
         } else if (cmd.elseBranch != null) {
             cmd.elseBranch.accept(this);
@@ -120,9 +110,9 @@ public class InterpreterVisitor implements Visitor<Object> {
     @Override
     public Object visitCmdIterate(CmdIterate cmd) {
         while (true) {
-            Object conditionValue = cmd.condition.accept(this);
+            Value conditionValue = (Value) cmd.condition.accept(this);
 
-            if (conditionValue instanceof Boolean && (Boolean) conditionValue) {
+            if (conditionValue instanceof BoolValue && ((BoolValue) conditionValue).getValue()) {
                 cmd.body.accept(this);
             } else {
                 break;
@@ -133,24 +123,26 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdPrint(CmdPrint cmd) {
-        Object value = cmd.value.accept(this);
-        System.out.println(value);
+        Value valueToPrint = (Value) cmd.value.accept(this);
+        System.out.println(valueToPrint.toString());
         return null;
     }
 
     @Override
     public Object visitCmdRead(CmdRead cmd) {
         String varName = extractVarName(cmd.lvalue);
-
         System.out.print(" entrada> ");
 
         if (scanner.hasNextInt()) {
             int value = scanner.nextInt();
-            memory.put(varName, value);
+            memory.put(varName, new IntValue(value));
+        } else if (scanner.hasNextFloat()) { // Adicionando suporte a float na leitura
+            float value = scanner.nextFloat();
+            memory.put(varName, new FloatValue(value));
         } else {
             String input = scanner.next();
             System.err.println(
-                    "Aviso: Entrada '" + input + "' não é um inteiro. Variável '" + varName + "' não foi atualizada.");
+                    "Aviso: Entrada '" + input + "' não é um número. Variável '" + varName + "' não foi atualizada.");
         }
         return null;
     }
@@ -192,74 +184,70 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpBinOp(ExpBinOp exp) {
-        Object left = exp.left.accept(this);
-        Object right = exp.right.accept(this);
+        Value left = (Value) exp.left.accept(this);
+        Value right = (Value) exp.right.accept(this);
 
-        if (left instanceof Number && right instanceof Number) {
-            boolean isFloat = (left instanceof Float || left instanceof Double ||
-                    right instanceof Float || right instanceof Double);
-
-            if (isFloat) {
-                double l = ((Number) left).doubleValue();
-                double r = ((Number) right).doubleValue();
-                switch (exp.op) {
-                    case "+":
-                        return l + r;
-                    case "-":
-                        return l - r;
-                    case "*":
-                        return l * r;
-                    case "/":
-                        return l / r;
-                    case "%":
-                        return l % r;
-                    case "==":
-                        return Boolean.valueOf(l == r);
-                    case "!=":
-                        return Boolean.valueOf(l != r);
-                    case "<":
-                        return Boolean.valueOf(l < r);
-                }
-            } else {
-                int l = ((Number) left).intValue();
-                int r = ((Number) right).intValue();
-                switch (exp.op) {
-                    case "+":
-                        return l + r;
-                    case "-":
-                        return l - r;
-                    case "*":
-                        return l * r;
-                    case "/":
-                        return l / r;
-                    case "%":
-                        return l % r;
-                    case "==":
-                        return Boolean.valueOf(l == r);
-                    case "!=":
-                        return Boolean.valueOf(l != r);
-                    case "<":
-                        return Boolean.valueOf(l < r);
-                }
+        if (left instanceof IntValue && right instanceof IntValue) {
+            int l = ((IntValue) left).getValue();
+            int r = ((IntValue) right).getValue();
+            switch (exp.op) {
+                case "+":
+                    return new IntValue(l + r);
+                case "-":
+                    return new IntValue(l - r);
+                case "*":
+                    return new IntValue(l * r);
+                case "/":
+                    return new IntValue(l / r);
+                case "%":
+                    return new IntValue(l % r);
+                case "==":
+                    return new BoolValue(l == r);
+                case "!=":
+                    return new BoolValue(l != r);
+                case "<":
+                    return new BoolValue(l < r);
             }
         }
 
-        if (left instanceof Boolean && right instanceof Boolean) {
-            boolean l = (Boolean) left;
-            boolean r = (Boolean) right;
+        if ((left instanceof IntValue || left instanceof FloatValue)
+                && (right instanceof IntValue || right instanceof FloatValue)) {
+            float l = (left instanceof IntValue) ? ((IntValue) left).getValue() : ((FloatValue) left).getValue();
+            float r = (right instanceof IntValue) ? ((IntValue) right).getValue() : ((FloatValue) right).getValue();
+            switch (exp.op) {
+                case "+":
+                    return new FloatValue(l + r);
+                case "-":
+                    return new FloatValue(l - r);
+                case "*":
+                    return new FloatValue(l * r);
+                case "/":
+                    return new FloatValue(l / r);
+                case "==":
+                    return new BoolValue(l == r);
+                case "!=":
+                    return new BoolValue(l != r);
+                case "<":
+                    return new BoolValue(l < r);
+            }
+        }
+
+        if (left instanceof BoolValue && right instanceof BoolValue) {
+            boolean l = ((BoolValue) left).getValue();
+            boolean r = ((BoolValue) right).getValue();
             switch (exp.op) {
                 case "&&":
-                    return Boolean.valueOf(l && r);
+                    return new BoolValue(l && r);
             }
         }
 
-        throw new RuntimeException("Operação binária não suportada para os tipos: "
-                + left.getClass().getSimpleName() + " " + exp.op + " " + right.getClass().getSimpleName());
+        throw new RuntimeException("Operação binária não suportada: " + left.getClass().getSimpleName() + " " + exp.op
+                + " " + right.getClass().getSimpleName());
     }
 
     @Override
     public Object visitExpBool(ExpBool exp) {
-        return exp.value;
+        return new BoolValue(exp.value);
     }
 
     @Override
@@ -274,7 +262,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpChar(ExpChar exp) {
-        return exp.value;
+        return new CharValue(exp.value);
     }
 
     @Override
@@ -284,51 +272,44 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpFloat(ExpFloat exp) {
-        return exp.value;
+        return new FloatValue(exp.value);
     }
 
     @Override
     public Object visitExpIndex(ExpIndex exp) {
-        Object arrayObject = exp.target.accept(this);
+        Value target = (Value) exp.target.accept(this);
+        Value indexVal = (Value) exp.index.accept(this);
 
-        if (arrayObject instanceof Object[]) {
-            Object indexObject = exp.index.accept(this);
-            if (indexObject instanceof Integer) {
-                int index = (Integer) indexObject;
-                return ((Object[]) arrayObject)[index]; // Retorna o valor do índice
-            } else {
-                throw new RuntimeException("Índice de array deve ser um inteiro.");
-            }
+        if (target instanceof ArrayValue && indexVal instanceof IntValue) {
+            int index = ((IntValue) indexVal).getValue();
+            return ((ArrayValue) target).get(index);
         }
-        throw new RuntimeException("Tentando indexar um valor que não é um array.");
+        throw new RuntimeException("Tentando indexar um valor que não é um array com um índice inteiro.");
     }
 
     @Override
     public Object visitExpInt(ExpInt exp) {
-        return exp.value;
+        return new IntValue(exp.value);
     }
 
     @Override
     public Object visitExpNew(ExpNew exp) {
         if (exp.size != null) {
-            Object sizeValue = exp.size.accept(this);
-            if (sizeValue instanceof Integer) {
-                int size = (Integer) sizeValue;
+            Value sizeValue = (Value) exp.size.accept(this);
 
-                Object[] array = new Object[size];
-
-                return array;
+            if (sizeValue instanceof IntValue) {
+                int size = ((IntValue) sizeValue).getValue();
+                return new ArrayValue(size);
             } else {
                 throw new RuntimeException("O tamanho de um novo array deve ser um inteiro.");
             }
         }
-
         throw new RuntimeException("A operação 'new' para tipos de objeto ainda não foi implementada.");
     }
 
     @Override
     public Object visitExpNull(ExpNull exp) {
-        return null;
+        return new NullValue();
     }
 
     @Override
@@ -338,19 +319,20 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpUnaryOp(ExpUnaryOp exp) {
-        Object value = exp.exp.accept(this);
+        Value value = (Value) exp.exp.accept(this);
+
         switch (exp.op) {
             case "!":
-                if (value instanceof Boolean) {
-                    return !(Boolean) value;
+                if (value instanceof BoolValue) {
+                    return new BoolValue(!((BoolValue) value).getValue());
                 }
                 throw new RuntimeException("Operador '!' só pode ser aplicado a booleanos.");
             case "-":
-                if (value instanceof Integer) {
-                    return -(Integer) value;
+                if (value instanceof IntValue) {
+                    return new IntValue(-((IntValue) value).getValue());
                 }
-                if (value instanceof Float) {
-                    return -(Float) value;
+                if (value instanceof FloatValue) {
+                    return new FloatValue(-((FloatValue) value).getValue());
                 }
                 throw new RuntimeException("Operador '-' só pode ser aplicado a números.");
         }
