@@ -9,46 +9,19 @@ import ast.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.Stack;
 
 public class InterpreterVisitor implements Visitor<Object> {
 
-    private final Map<String, Object> memory = new HashMap<>();
+    private final Stack<Map<String, Value>> memoryStack = new Stack<>();
     private final Scanner scanner = new Scanner(System.in);
 
-    /*
-     * Método para avaliar expressões de LValue, como variáveis e arrays.
-     * Esse método é temporário e deve ser substituído por uma lógica mais robusta
-     * da memória
-     */
-    private Object visitLvalExprFromLValue(LValue lv) {
-        if (lv instanceof LValueId) {
-            return memory.get(((LValueId) lv).id);
-        } else if (lv instanceof LValueIndex) {
-            LValueIndex idx = (LValueIndex) lv;
-            Object baseArray = visitLvalExprFromLValue(idx.target);
-            if (baseArray instanceof Object[]) {
-                Object indexObject = idx.index.accept(this);
-                if (indexObject instanceof Integer) {
-                    return ((Object[]) baseArray)[(Integer) indexObject];
-                }
-            }
-        } else if (lv instanceof LValueField) {
-            // Lógica para campos de struct virá aqui no futuro
-        }
-        throw new RuntimeException("Não é possível avaliar o LValue: " + lv.getClass().getSimpleName());
+    public InterpreterVisitor() {
+        memoryStack.push(new HashMap<>());
     }
 
-    public Object evalExp(Exp exp) {
-        if (exp instanceof ExpInt) {
-            return ((ExpInt) exp).getValue();
-        } else if (exp instanceof ExpVar) {
-            String var = ((ExpVar) exp).getName();
-            if (!memory.containsKey(var)) {
-                throw new RuntimeException("Variável não declarada: " + var);
-            }
-            return memory.get(var);
-        }
-        throw new RuntimeException("Expressão não suportada ainda: " + exp.getClass().getSimpleName());
+    private Map<String, Value> currentScope() {
+        return memoryStack.peek();
     }
 
     @Override
@@ -63,7 +36,7 @@ public class InterpreterVisitor implements Visitor<Object> {
         if (cmd.target instanceof LValueIndex) {
             LValueIndex lvalIndex = (LValueIndex) cmd.target;
             String arrayName = extractVarName(lvalIndex.target);
-            Value arrayVal = (Value) memory.get(arrayName);
+            Value arrayVal = (Value) currentScope().get(arrayName);
             Value indexVal = (Value) lvalIndex.index.accept(this);
 
             if (arrayVal instanceof ArrayValue && indexVal instanceof IntValue) {
@@ -74,7 +47,7 @@ public class InterpreterVisitor implements Visitor<Object> {
             }
         } else if (cmd.target instanceof LValueId) {
             String varName = ((LValueId) cmd.target).id;
-            memory.put(varName, valueToAssign);
+            currentScope().put(varName, valueToAssign);
         } else {
             throw new UnsupportedOperationException("Tipo de atribuição não suportado.");
         }
@@ -135,10 +108,10 @@ public class InterpreterVisitor implements Visitor<Object> {
 
         if (scanner.hasNextInt()) {
             int value = scanner.nextInt();
-            memory.put(varName, new IntValue(value));
+            currentScope().put(varName, new IntValue(value));
         } else if (scanner.hasNextFloat()) { // Adicionando suporte a float na leitura
             float value = scanner.nextFloat();
-            memory.put(varName, new FloatValue(value));
+            currentScope().put(varName, new FloatValue(value));
         } else {
             String input = scanner.next();
             System.err.println(
@@ -341,10 +314,10 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpVar(ExpVar exp) {
-        if (!memory.containsKey(exp.name)) {
+        if (!currentScope().containsKey(exp.name)) {
             throw new RuntimeException("Variável não inicializada: " + exp.name);
         }
-        return memory.get(exp.name);
+        return currentScope().get(exp.name);
     }
 
     @Override
@@ -419,10 +392,6 @@ public class InterpreterVisitor implements Visitor<Object> {
             return idLval.id;
         }
         throw new UnsupportedOperationException("LValue não suportado: " + lval.getClass().getSimpleName());
-    }
-
-    public Map<String, Object> getMemory() {
-        return memory;
     }
 
 }
