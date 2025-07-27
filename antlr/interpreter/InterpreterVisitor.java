@@ -6,7 +6,10 @@
 package interpreter;
 
 import ast.*;
+
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Stack;
@@ -18,7 +21,7 @@ public class InterpreterVisitor implements Visitor<Object> {
     private final Map<String, Data> dataDefinitions = new HashMap<>();
     private final Scanner scanner = new Scanner(System.in);
 
-    private Value returnValue = null;
+    private List<Value> returnValues = new ArrayList<>();
 
     public InterpreterVisitor() {
         memoryStack.push(new HashMap<>());
@@ -52,15 +55,16 @@ public class InterpreterVisitor implements Visitor<Object> {
         Value valueToAssign = (Value) cmd.expression.accept(this);
 
         if (cmd.target instanceof LValueIndex) {
-        } else if (cmd.target instanceof LValueField) {
-            LValueField lvalField = (LValueField) cmd.target;
+            LValueIndex lvalIndex = (LValueIndex) cmd.target;
+            String arrayName = extractVarName(lvalIndex.target);
+            Value arrayVal = (Value) currentScope().get(arrayName);
+            Value indexVal = (Value) lvalIndex.index.accept(this);
 
-            Value targetObject = (Value) visitLvalExprFromLValue(lvalField.target);
-
-            if (targetObject instanceof DataValue) {
-                ((DataValue) targetObject).setField(lvalField.field, valueToAssign);
+            if (arrayVal instanceof ArrayValue && indexVal instanceof IntValue) {
+                int index = ((IntValue) indexVal).getValue();
+                ((ArrayValue) arrayVal).set(index, valueToAssign);
             } else {
-                throw new RuntimeException("Tentativa de aceder a um campo de um valor que não é um 'data'.");
+                throw new RuntimeException("Atribuição inválida em array.");
             }
         } else if (cmd.target instanceof LValueId) {
             String varName = ((LValueId) cmd.target).id;
@@ -68,7 +72,6 @@ public class InterpreterVisitor implements Visitor<Object> {
         } else {
             throw new UnsupportedOperationException("Tipo de atribuição não suportado.");
         }
-
         return null;
     }
 
@@ -86,25 +89,42 @@ public class InterpreterVisitor implements Visitor<Object> {
         if (funDef == null) {
             throw new RuntimeException("Função '" + cmd.id + "' não definida.");
         }
-
         if (funDef.params.size() != cmd.args.size()) {
             throw new RuntimeException("Número incorreto de argumentos para a função '" + cmd.id + "'.");
         }
 
         Map<String, Value> newScope = new HashMap<>();
-
         for (int i = 0; i < funDef.params.size(); i++) {
             String paramName = funDef.params.get(i).id;
-            Value argValue = (Value) cmd.args.get(i).accept(this); // Avalia o argumento
+            Value argValue = (Value) cmd.args.get(i).accept(this);
             newScope.put(paramName, argValue);
         }
-
         memoryStack.push(newScope);
 
+        this.returnValues.clear();
         funDef.body.accept(this);
 
         memoryStack.pop();
 
+        if (cmd.rets != null && cmd.rets.size() > 0) {
+            if (cmd.rets.size() != this.returnValues.size()) {
+                throw new RuntimeException("Número de variáveis de retorno (" + cmd.rets.size()
+                        + ") é diferente do número de valores retornados (" + this.returnValues.size() + ").");
+            }
+            for (int i = 0; i < cmd.rets.size(); i++) {
+                LValue targetLval = cmd.rets.get(i);
+                Value returnedValue = this.returnValues.get(i);
+
+                if (targetLval instanceof LValueId) {
+                    currentScope().put(((LValueId) targetLval).id, returnedValue);
+                } else {
+                    throw new UnsupportedOperationException(
+                            "Atribuição de retorno múltiplo só suporta variáveis simples.");
+                }
+            }
+        }
+
+        this.returnValues.clear();
         return null;
     }
 
@@ -121,13 +141,32 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdIterate(CmdIterate cmd) {
-        while (true) {
-            Value conditionValue = (Value) cmd.condition.accept(this);
+        if (cmd.condition instanceof ItCondLabelled) {
+            ItCondLabelled itCond = (ItCondLabelled) cmd.condition;
+            Value iterable = (Value) itCond.expression.accept(this);
 
-            if (conditionValue instanceof BoolValue && ((BoolValue) conditionValue).getValue()) {
-                cmd.body.accept(this);
+            if (iterable instanceof ArrayValue) {
+                ArrayValue array = (ArrayValue) iterable;
+                Map<String, Value> loopScope = new HashMap<>();
+                memoryStack.push(loopScope);
+
+                for (Value element : array.getValues()) {
+                    currentScope().put(itCond.label, element);
+                    cmd.body.accept(this); // Executa o corpo
+                }
+
+                memoryStack.pop();
             } else {
-                break;
+                throw new UnsupportedOperationException("'iterate' com rótulo só suporta arrays por agora.");
+            }
+        } else {
+            while (true) {
+                Value conditionValue = (Value) cmd.condition.accept(this);
+                if (conditionValue instanceof BoolValue && ((BoolValue) conditionValue).getValue()) {
+                    cmd.body.accept(this);
+                } else {
+                    break;
+                }
             }
         }
         return null;
@@ -148,7 +187,7 @@ public class InterpreterVisitor implements Visitor<Object> {
         if (scanner.hasNextInt()) {
             int value = scanner.nextInt();
             currentScope().put(varName, new IntValue(value));
-        } else if (scanner.hasNextFloat()) { // Adicionando suporte a float na leitura
+        } else if (scanner.hasNextFloat()) {
             float value = scanner.nextFloat();
             currentScope().put(varName, new FloatValue(value));
         } else {
@@ -161,8 +200,9 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdReturn(CmdReturn cmd) {
-        if (!cmd.values.isEmpty()) {
-            this.returnValue = (Value) cmd.values.get(0).accept(this);
+        this.returnValues.clear();
+        for (Exp exp : cmd.values) {
+            this.returnValues.add((Value) exp.accept(this));
         }
         return null;
     }
@@ -286,12 +326,12 @@ public class InterpreterVisitor implements Visitor<Object> {
 
         memoryStack.push(newScope);
 
-        this.returnValue = null;
+        this.returnValues = null;
         funDef.body.accept(this);
 
         memoryStack.pop();
 
-        return this.returnValue;
+        return this.returnValues;
     }
 
     @Override
@@ -329,7 +369,7 @@ public class InterpreterVisitor implements Visitor<Object> {
             int index = ((IntValue) indexVal).getValue();
             return ((ArrayValue) target).get(index);
         }
-        throw new RuntimeException("Tentando indexar um valor que não é um array com um índice inteiro.");
+        throw new RuntimeException("Tentativa de indexar um valor que não é um array com um índice inteiro.");
     }
 
     @Override

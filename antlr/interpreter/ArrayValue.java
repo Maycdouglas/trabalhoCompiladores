@@ -32,4 +32,8 @@ public class ArrayValue implements Value {
     public String toString() {
         return Arrays.toString(values);
     }
+
+    public Value[] getValues() {
+        return this.values;
+    }
 }
