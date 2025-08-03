@@ -1,19 +1,5 @@
--- teste_chamada_funcao.lan
-
--- Define uma função que recebe dois inteiros,
--- cria uma variável local e imprime o resultado.
-soma_e_imprime(a :: Int, b :: Int) {
-  resultado_local = a + b;
-  print resultado_local;
-}
-
 main() {
-  x = 10;
-  y = 20;
-
-  -- Chama a função. O 'x' e 'y' da main não devem
-  -- interferir com 'a' e 'b' da função.
-  soma_e_imprime(x, y);
-
-  soma_e_imprime(100, 50);
+  x = 10 + 5;      -- OK
+  y = true && false; -- OK
+  z = 10 + true;   -- ERRO
 }

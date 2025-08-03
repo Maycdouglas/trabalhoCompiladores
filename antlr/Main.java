@@ -5,74 +5,57 @@
 
 import ast.*;
 import parser.*;
-import interpreter.*;
 import error.SyntaxErrorListener;
+import semant.SemanticVisitor; // Importa o novo visitor
 
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
-import java.io.File; // Importa a classe File
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 
 public class Main {
     public static void main(String[] args) throws IOException {
         if (args.length == 0) {
-            System.err.println("Uso: java Main <caminho do arquivo de entrada> [diretorio de saida]");
+            System.err.println("Uso: java Main <caminho do arquivo de entrada>");
             System.exit(1);
         }
 
         String caminhoArquivo = args[0];
-        String outputDir = (args.length > 1) ? args[1] : "dotFiles";
 
-        // Configuração do Lexer e Parser
+        // --- Etapa 1: Análise Léxica e Sintática ---
         CharStream input = CharStreams.fromStream(new FileInputStream(caminhoArquivo), StandardCharsets.UTF_8);
         langLexer lexer = new langLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         langParser parser = new langParser(tokens);
 
-        // Adiciona listener de erro personalizado
         SyntaxErrorListener errorListener = new SyntaxErrorListener();
         parser.removeErrorListeners();
         parser.addErrorListener(errorListener);
-        lexer.removeErrorListeners();
-        lexer.addErrorListener(errorListener);
 
-        // Processamento e construção da AST
         ParseTree tree = parser.prog();
-        System.out.println(tree.toStringTree(parser));
 
-        // Verifica se houve erro léxico ou sintático
         if (errorListener.hasErrors()) {
-            System.err.println("Erros foram detectados. A AST não será gerada.");
+            System.err.println("Erros de sintaxe detetados. Análise interrompida.");
+            System.out.println("reject");
             return;
         }
 
-        // Verifica se houve erro léxico ou sintático
-        ASTBuilder visitor = new ASTBuilder();
-        Prog ast = (Prog) visitor.visit(tree);
-        System.out.println("AST criada com sucesso: " + ast);
+        // --- Etapa 2: Construção da AST ---
+        ASTBuilder astBuilder = new ASTBuilder();
+        Prog ast = (Prog) astBuilder.visit(tree);
+        System.out.println("AST criada com sucesso.");
 
-        // Interpretação
-        InterpreterVisitor interpreter = new InterpreterVisitor();
-        ast.accept(interpreter); // executa a interpretação
-
-        String nomeArquivoBase = new File(caminhoArquivo).getName().replaceFirst("[.][^.]+$", "");
-        String nomeSaidaDot = outputDir + File.separator + nomeArquivoBase + ".dot";
-
-        // Garante que o diretório de destino exista
-        new File(outputDir).mkdirs();
-
-        // Gera o arquivo .dot
-        try (PrintWriter out = new PrintWriter(nomeSaidaDot)) {
-            out.println("digraph AST {");
-            out.print(ast.toDot(null));
-            out.println("}");
-            System.out.println("Arquivo " + nomeSaidaDot + " gerado com sucesso.");
-        } catch (IOException e) {
-            e.printStackTrace();
+        // --- Etapa 3: Análise Semântica ---
+        System.out.println("--- Executando Análise Semântica ---");
+        SemanticVisitor semanticVisitor = new SemanticVisitor();
+        try {
+            ast.accept(semanticVisitor);
+            System.out.println("accept"); // Se não houver exceções, o programa é semanticamente correto
+        } catch (RuntimeException e) {
+            System.out.println("reject"); // Se houver uma exceção, o programa é inválido
+            System.err.println("Erro Semântico: " + e.getMessage());
         }
     }
 }
