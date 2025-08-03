@@ -25,14 +25,23 @@ public class SemanticVisitor implements Visitor<Type> {
         return gamma.peek();
     }
 
+    private Type findVar(String varName) {
+        for (int i = gamma.size() - 1; i >= 0; i--) {
+            Map<String, Type> scope = gamma.get(i);
+            if (scope.containsKey(varName)) {
+                return scope.get(varName);
+            }
+        }
+        throw new RuntimeException("Variável '" + varName + "' não declarada.");
+    }
+
+    // --- MÉTODOS DE VISITAÇÃO ---
+
     @Override
     public Type visitProg(Prog prog) {
         for (Def def : prog.definitions) {
             def.accept(this);
         }
-
-        // CORREÇÃO APLICADA: Esta parte agora irá de fato analisar os corpos das
-        // funções.
         for (Def def : prog.definitions) {
             if (def instanceof Fun) {
                 checkFunBody((Fun) def);
@@ -50,49 +59,8 @@ public class SemanticVisitor implements Visitor<Type> {
         gamma.pop();
     }
 
-    // ... (métodos visitDef, visitFun, visitData, etc., permanecem os mesmos) ...
-
-    /**
-     * NOVO: Implementação para analisar o comando 'print'.
-     * A chave aqui é chamar o `accept` na expressão contida no 'print'.
-     * Isso fará com que o visitor navegue até o nó da variável 'x'.
-     */
-    @Override
-    public Type visitCmdPrint(CmdPrint cmdPrint) {
-        cmdPrint.value.accept(this); // Visita a expressão dentro do print
-        return null;
-    }
-
-    @Override
-    public Type visitExpVar(ExpVar expVar) {
-        // Agora que `visitCmdPrint` nos trouxe até aqui, este método será executado.
-        Type varType = findVar(expVar.name); // Usando a função auxiliar
-        if (varType == null) {
-            throw new RuntimeException("Variável '" + expVar.name + "' não declarada neste âmbito.");
-        }
-        return varType;
-    }
-
-    /**
-     * NOVO: Função auxiliar para procurar uma variável em todos os escopos,
-     * do mais interno para o mais externo.
-     */
-    private Type findVar(String varName) {
-        for (int i = gamma.size() - 1; i >= 0; i--) {
-            Map<String, Type> scope = gamma.get(i);
-            if (scope.containsKey(varName)) {
-                return scope.get(varName);
-            }
-        }
-        return null; // Retorna null se não encontrar em nenhum escopo
-    }
-
-    // --- O restante dos seus métodos de visitação ---
-    // (Cole o restante do código que te enviei anteriormente aqui)
-    // Cole o resto do seu código aqui
     @Override
     public Type visitDef(Def def) {
-        // Delega para o tipo de definição específico (Fun, Data, etc.)
         return def.accept(this);
     }
 
@@ -156,8 +124,74 @@ public class SemanticVisitor implements Visitor<Type> {
     }
 
     @Override
+    public Type visitCmdPrint(CmdPrint cmdPrint) {
+        cmdPrint.value.accept(this);
+        return null;
+    }
+
+    @Override
     public Type visitExp(Exp exp) {
         return exp.accept(this);
+    }
+
+    @Override
+    public Type visitExpBinOp(ExpBinOp expBinOp) {
+        Type leftType = expBinOp.left.accept(this);
+        Type rightType = expBinOp.right.accept(this);
+
+        if (!leftType.baseType.equals(rightType.baseType) || leftType.arrayDim != rightType.arrayDim) {
+            throw new RuntimeException("Operação binária '" + expBinOp.op + "' entre tipos incompatíveis: "
+                    + leftType.baseType + " e " + rightType.baseType);
+        }
+
+        switch (expBinOp.op) {
+            case "+":
+            case "-":
+            case "*":
+            case "/":
+            case "%":
+                if (!leftType.baseType.equals("Int") && !leftType.baseType.equals("Float")) {
+                    throw new RuntimeException(
+                            "Operador aritmético '" + expBinOp.op + "' só pode ser usado com Int ou Float.");
+                }
+                return leftType;
+            case "==":
+            case "!=":
+            case "<":
+                return new Type("Bool", 0);
+            case "&&":
+                if (!leftType.baseType.equals("Bool")) {
+                    throw new RuntimeException("Operador lógico '&&' requer operandos do tipo Bool.");
+                }
+                return new Type("Bool", 0);
+            default:
+                throw new RuntimeException("Operador binário desconhecido: " + expBinOp.op);
+        }
+    }
+
+    @Override
+    public Type visitExpUnaryOp(ExpUnaryOp expUnaryOp) {
+        Type expType = expUnaryOp.exp.accept(this);
+
+        switch (expUnaryOp.op) {
+            case "!":
+                if (!expType.baseType.equals("Bool")) {
+                    throw new RuntimeException("Operador '!' só pode ser aplicado a booleanos.");
+                }
+                return new Type("Bool", 0);
+            case "-":
+                if (!expType.baseType.equals("Int") && !expType.baseType.equals("Float")) {
+                    throw new RuntimeException("Operador '-' só pode ser aplicado a números.");
+                }
+                return expType;
+            default:
+                throw new RuntimeException("Operador unário desconhecido: " + expUnaryOp.op);
+        }
+    }
+
+    @Override
+    public Type visitExpVar(ExpVar expVar) {
+        return findVar(expVar.name);
     }
 
     @Override
@@ -170,86 +204,7 @@ public class SemanticVisitor implements Visitor<Type> {
         return findVar(lValueId.id);
     }
 
-    // ... (início do arquivo e métodos anteriores) ...
-
-    /**
-     * NOVO: Implementação da verificação de tipos para expressões binárias.
-     * 1. Visita recursivamente os operandos da esquerda e da direita para obter
-     * seus tipos.
-     * 2. Verifica se os tipos são compatíveis para o operador em questão.
-     * 3. Retorna o tipo resultante da expressão.
-     */
-    @Override
-    public Type visitExpBinOp(ExpBinOp expBinOp) {
-        Type leftType = expBinOp.left.accept(this);
-        Type rightType = expBinOp.right.accept(this);
-
-        // Verifica se os tipos são iguais (simplificação inicial)
-        if (!leftType.baseType.equals(rightType.baseType) || leftType.arrayDim != rightType.arrayDim) {
-            throw new RuntimeException("Operação binária '" + expBinOp.op + "' entre tipos incompatíveis: " +
-                    leftType.baseType + " e " + rightType.baseType);
-        }
-
-        switch (expBinOp.op) {
-            // Operadores Aritméticos: retornam o mesmo tipo dos operandos (Int ou Float)
-            case "+":
-            case "-":
-            case "*":
-            case "/":
-            case "%":
-                if (!leftType.baseType.equals("Int") && !leftType.baseType.equals("Float")) {
-                    throw new RuntimeException(
-                            "Operador aritmético '" + expBinOp.op + "' só pode ser usado com Int ou Float.");
-                }
-                return leftType;
-
-            // Operadores Relacionais e de Igualdade: sempre retornam Bool
-            case "==":
-            case "!=":
-            case "<":
-                return new Type("Bool", 0);
-
-            // Operadores Lógicos: exigem operandos Bool e retornam Bool
-            case "&&":
-                if (!leftType.baseType.equals("Bool")) {
-                    throw new RuntimeException("Operador lógico '&&' requer operandos do tipo Bool.");
-                }
-                return new Type("Bool", 0);
-
-            default:
-                throw new RuntimeException("Operador binário desconhecido: " + expBinOp.op);
-        }
-    }
-
-    @Override
-    public Type visitExpUnaryOp(ExpUnaryOp expUnaryOp) {
-        return null;
-    }
-
-    @Override
-    public Type visitExpInt(ExpInt exp) {
-        return new Type("Int", 0);
-    }
-
-    @Override
-    public Type visitExpFloat(ExpFloat expFloat) {
-        return new Type("Float", 0);
-    }
-
-    @Override
-    public Type visitExpBool(ExpBool expBool) {
-        return new Type("Bool", 0);
-    }
-
-    @Override
-    public Type visitExpChar(ExpChar expChar) {
-        return new Type("Char", 0);
-    }
-
-    @Override
-    public Type visitExpNull(ExpNull expNull) {
-        return new Type("Null", 0);
-    }
+    // --- Métodos restantes da interface Visitor (necessários para compilar) ---
 
     @Override
     public Type visitCmdCall(CmdCall cmdCall) {
@@ -277,43 +232,63 @@ public class SemanticVisitor implements Visitor<Type> {
     }
 
     @Override
-    public Type visitExpCall(ExpCall expCall) {
+    public Type visitDecl(Decl decl) {
         return null;
     }
 
     @Override
-    public Type visitExpCallIndexed(ExpCallIndexed expCallIndexed) {
+    public Type visitExpBool(ExpBool exp) {
+        return new Type("Bool", 0);
+    }
+
+    @Override
+    public Type visitExpCall(ExpCall exp) {
         return null;
     }
 
     @Override
-    public Type visitExpParen(ExpParen expParen) {
-        return expParen.exp.accept(this);
-    }
-
-    @Override
-    public Type visitExpNew(ExpNew expNew) {
+    public Type visitExpCallIndexed(ExpCallIndexed exp) {
         return null;
     }
 
     @Override
-    public Type visitExpIndex(ExpIndex expIndex) {
+    public Type visitExpChar(ExpChar exp) {
+        return new Type("Char", 0);
+    }
+
+    @Override
+    public Type visitExpField(ExpField exp) {
         return null;
     }
 
     @Override
-    public Type visitExpField(ExpField expField) {
+    public Type visitExpFloat(ExpFloat exp) {
+        return new Type("Float", 0);
+    }
+
+    @Override
+    public Type visitExpIndex(ExpIndex exp) {
         return null;
     }
 
     @Override
-    public Type visitLValueField(LValueField lValueField) {
+    public Type visitExpInt(ExpInt exp) {
+        return new Type("Int", 0);
+    }
+
+    @Override
+    public Type visitExpNew(ExpNew exp) {
         return null;
     }
 
     @Override
-    public Type visitLValueIndex(LValueIndex lValueIndex) {
-        return null;
+    public Type visitExpNull(ExpNull exp) {
+        return new Type("Null", 0);
+    }
+
+    @Override
+    public Type visitExpParen(ExpParen exp) {
+        return exp.exp.accept(this);
     }
 
     @Override
@@ -332,7 +307,12 @@ public class SemanticVisitor implements Visitor<Type> {
     }
 
     @Override
-    public Type visitDecl(Decl decl) {
+    public Type visitLValueField(LValueField lValueField) {
+        return null;
+    }
+
+    @Override
+    public Type visitLValueIndex(LValueIndex lValueIndex) {
         return null;
     }
 
@@ -342,8 +322,7 @@ public class SemanticVisitor implements Visitor<Type> {
     }
 
     @Override
-    public Type visitType(ast.Type type) {
+    public Type visitType(Type type) {
         return null;
     }
-
 }
