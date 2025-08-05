@@ -261,6 +261,15 @@ public class SemanticVisitor implements Visitor<Type> {
         if (delta.containsKey(data.name)) {
             throw new RuntimeException("Tipo '" + data.name + "' já definido.");
         }
+
+        Map<String, Type> fields = new HashMap<>();
+        for (Decl decl : data.declarations) {
+            if (fields.containsKey(decl.id)) {
+                throw new RuntimeException("Campo '" + decl.id + "' já foi declarado no tipo '" + data.name + "'.");
+            }
+            fields.put(decl.id, decl.type);
+        }
+
         delta.put(data.name, data);
         return null;
     }
@@ -270,6 +279,15 @@ public class SemanticVisitor implements Visitor<Type> {
         if (delta.containsKey(data.name)) {
             throw new RuntimeException("Tipo '" + data.name + "' já definido.");
         }
+
+        Map<String, Type> fields = new HashMap<>();
+        for (Decl decl : data.declarations) {
+            if (fields.containsKey(decl.id)) {
+                throw new RuntimeException("Campo '" + decl.id + "' já foi declarado no tipo '" + data.name + "'.");
+            }
+            fields.put(decl.id, decl.type);
+        }
+
         delta.put(data.name, data);
         return null;
     }
