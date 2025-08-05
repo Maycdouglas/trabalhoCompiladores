@@ -288,14 +288,20 @@ public class InterpreterVisitor implements Visitor<Object> {
             }
         }
 
-        if (left instanceof BoolValue && right instanceof BoolValue) {
-            boolean l = ((BoolValue) left).getValue();
-            boolean r = ((BoolValue) right).getValue();
-            switch (exp.op) {
-                case "&&":
-                    return new BoolValue(l && r);
-            }
+        // Coerção automática de IntValue para BoolValue, apenas para && e ||
+        if ((exp.op.equals("&&") || exp.op.equals("||")) &&
+            (left instanceof IntValue || left instanceof BoolValue) &&
+            (right instanceof IntValue || right instanceof BoolValue)) {
+
+            boolean l = (left instanceof IntValue) ? ((IntValue) left).getValue() != 0
+                                                : ((BoolValue) left).getValue();
+
+            boolean r = (right instanceof IntValue) ? ((IntValue) right).getValue() != 0
+                                                : ((BoolValue) right).getValue();
+
+            return new BoolValue(exp.op.equals("&&") ? (l && r) : (l || r));
         }
+
 
         throw new RuntimeException("Operação binária não suportada: " + left.getClass().getSimpleName() + " " + exp.op
                 + " " + right.getClass().getSimpleName());

@@ -36,7 +36,18 @@ Linux:
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/errado/nonAssoc.lan`
 3. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/certo/attrADD.lan`
 4. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/certo/attrAND.lan`
+
 5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/certo/attrCHAR.lan`
+
+###PROBLEMATICOS:
+
+1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/attrAND.lan`
+2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/data.lan`
+3. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/function_call_expr.lan`
+4. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/if_oneCMD.lan`
+5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/instanciate.lan`
+6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/iterateLocalArrVar.lan`
+7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/iterateLocalVar.lan`
 
 `java -cp ".;antlr-4.8-complete.jar" Main teste.lan images`
 
