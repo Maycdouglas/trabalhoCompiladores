@@ -145,21 +145,30 @@ public class InterpreterVisitor implements Visitor<Object> {
             ItCondLabelled itCond = (ItCondLabelled) cmd.condition;
             Value iterable = (Value) itCond.expression.accept(this);
 
+            Map<String, Value> loopScope = new HashMap<>();
+            memoryStack.push(loopScope);
+
             if (iterable instanceof ArrayValue) {
                 ArrayValue array = (ArrayValue) iterable;
-                Map<String, Value> loopScope = new HashMap<>();
-                memoryStack.push(loopScope);
-
                 for (Value element : array.getValues()) {
                     currentScope().put(itCond.label, element);
                     cmd.body.accept(this); // Executa o corpo
                 }
+            } else if (iterable instanceof IntValue) {
+                int max = ((IntValue) iterable).getValue();
+                for (int i = 0; i < max; i++) {
+                    currentScope().put(itCond.label, new IntValue(i));
+                    cmd.body.accept(this);
+                }
 
-                memoryStack.pop();
             } else {
-                throw new UnsupportedOperationException("'iterate' com rótulo só suporta arrays por agora.");
+                throw new UnsupportedOperationException("'iterate' com rótulo só suporta arrays ou inteiros.");
             }
+
+            memoryStack.pop();
+
         } else {
+            // ItCondWhile
             while (true) {
                 Value conditionValue = (Value) cmd.condition.accept(this);
                 if (conditionValue instanceof BoolValue && ((BoolValue) conditionValue).getValue()) {
