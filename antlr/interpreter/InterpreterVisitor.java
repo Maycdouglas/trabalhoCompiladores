@@ -288,6 +288,20 @@ public class InterpreterVisitor implements Visitor<Object> {
             }
         }
 
+        // Comparação entre CharValue
+        if (left instanceof CharValue && right instanceof CharValue) {
+            char l = ((CharValue) left).getValue();
+            char r = ((CharValue) right).getValue();
+            switch (exp.op) {
+                case "==":
+                    return new BoolValue(l == r);
+                case "!=":
+                    return new BoolValue(l != r);
+                case "<":
+                    return new BoolValue(l < r);
+            }
+        }
+
         // Coerção automática de IntValue para BoolValue, apenas para && e ||
         if ((exp.op.equals("&&") || exp.op.equals("||")) &&
             (left instanceof IntValue || left instanceof BoolValue) &&

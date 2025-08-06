@@ -219,22 +219,36 @@ public class ASTBuilder extends langBaseVisitor<Object> {
 
         String inner = text.substring(1, text.length() - 1); // remove as aspas simples
 
-        switch (inner) {
-            case "\\n":
-                return '\n';
-            case "\\t":
-                return '\t';
-            case "\\r":
-                return '\r';
-            case "\\'":
-                return '\'';
-            case "\\\\":
-                return '\\';
-            default:
-                if (inner.length() == 1)
-                    return inner.charAt(0);
-                throw new RuntimeException("Caractere desconhecido: " + inner);
+        if (inner.startsWith("\\")) {
+            if (inner.length() > 1) {
+                if (inner.length() == 4 && Character.isDigit(inner.charAt(1)) && Character.isDigit(inner.charAt(2))
+                        && Character.isDigit(inner.charAt(3))) {
+                    String decimalString = inner.substring(1); // pega os 3 dígitos
+                    int value = Integer.parseInt(decimalString, 10); // interpreta como DECIMAL
+                    return (char) value;
+                }
+                switch (inner) {
+                    case "\\n":
+                        return '\n';
+                    case "\\t":
+                        return '\t';
+                    case "\\r":
+                        return '\r';
+                    case "\\'":
+                        return '\'';
+                    case "\\\\":
+                        return '\\';
+                    default:
+                        throw new RuntimeException("Caractere de escape desconhecido: " + inner);
+                }
+            }
         }
+
+        if (inner.length() == 1) {
+            return inner.charAt(0);
+        }
+
+        throw new RuntimeException("Literal de caractere inválido: " + text);
     }
 
     @Override
