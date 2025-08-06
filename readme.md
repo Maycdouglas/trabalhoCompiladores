@@ -39,7 +39,7 @@ Linux:
 
 5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/certo/attrCHAR.lan`
 
-###PROBLEMATICOS:
+### PROBLEMATICOS:
 
 1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/attrAND.lan`
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/data.lan`
@@ -48,6 +48,51 @@ Linux:
 5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/instanciate.lan`
 6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/iterateLocalArrVar.lan`
 7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/sintaxe/problematicos/iterateLocalVar.lan`
+
+### ARQUIVOS SEMANTICOS:
+
+#### SIMPLE
+
+1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/assoc.lan`
+   - deu certo, mas existe um espaçamento entre as impressões com duas linhas vazias.
+2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/equivChar.lan`
+   - deu errado, problema com o caractere '\065' que não foi reconhecido
+3. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/ifchain.lan`
+   - deu certo, mas com problema nas linhas vazias novamente e na impressão dos caracteres, colocando um em cada linha
+4. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/iterVar.lan`
+   - deu errado, 'iterate' com rótulo só suporta arrays por agora.
+5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/iterVarArr.lan`
+   - deu errado, 'iterate' com rótulo só suporta arrays por agora. Mas é array, ainda assim deu errado.
+6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/iterVarDec.lan`
+   - deu errado, 'iterate' com rótulo só suporta arrays por agora.
+7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/read.lan`
+   - deu certo, mas existem linhas vazias após. deveria ser só uma.
+8. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/teste0.lan`
+   - rodou, mas imprimiu nada.
+
+#### FUNCTION
+
+1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/board.lan`
+   - Exception in thread "main" java.lang.UnsupportedOperationException: LValue não suportado: LValueIndex
+2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/fib.lan`
+   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+3. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/numeric.lan`
+   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+4. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/or_equiv.lan`
+   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/return.lan`
+   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/sort.lan`
+   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/teste1.lan`
+   - Imprime o z incorretamente, o restante sai certo, com as linhas vazias igual os anteriores
+
+#### FULL
+
+1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/AFD.lan`
+   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/linked.lan`
+   - Exception in thread "main" java.lang.UnsupportedOperationException: Tipo de atribuição não suportado.
 
 `java -cp ".;antlr-4.8-complete.jar" Main teste.lan images`
 
