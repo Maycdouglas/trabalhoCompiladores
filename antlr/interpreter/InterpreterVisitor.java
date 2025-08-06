@@ -175,7 +175,7 @@ public class InterpreterVisitor implements Visitor<Object> {
     @Override
     public Object visitCmdPrint(CmdPrint cmd) {
         Value valueToPrint = (Value) cmd.value.accept(this);
-        System.out.println(valueToPrint.toString());
+        System.out.print(valueToPrint.toString());
         return null;
     }
 
