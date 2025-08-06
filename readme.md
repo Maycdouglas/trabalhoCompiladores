@@ -54,19 +54,19 @@ Linux:
 #### SIMPLE
 
 1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/assoc.lan`
-   - deu certo, mas existe um espaçamento entre as impressões com duas linhas vazias.
+   - CERTO
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/equivChar.lan`
-   - deu errado, problema com o caractere '\065' que não foi reconhecido
+   - CERTO
 3. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/ifchain.lan`
-   - deu certo, mas com problema nas linhas vazias novamente e na impressão dos caracteres, colocando um em cada linha
+   - CERTO
 4. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/iterVar.lan`
-   - deu errado, 'iterate' com rótulo só suporta arrays por agora.
+   - CERTO
 5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/iterVarArr.lan`
    - deu errado, 'iterate' com rótulo só suporta arrays por agora. Mas é array, ainda assim deu errado.
 6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/iterVarDec.lan`
    - deu errado, 'iterate' com rótulo só suporta arrays por agora.
 7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/read.lan`
-   - deu certo, mas existem linhas vazias após. deveria ser só uma.
+   - CERTO
 8. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/teste0.lan`
    - rodou, mas imprimiu nada.
 
@@ -94,6 +94,20 @@ Linux:
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/linked.lan`
    - Exception in thread "main" java.lang.UnsupportedOperationException: Tipo de atribuição não suportado.
 
+### Visits do Interpreter que não estão completos:
+
+- visitData
+- visitDataAbstract
+- visitDecl
+- visitDef
+- visitExpCallIndexed
+- visitLValue
+- visitLValueField
+- visitLValueId
+- visitLValueIndex
+- visitParam
+- visitType
+
 `java -cp ".;antlr-4.8-complete.jar" Main teste.lan images`
 
 Linux:
@@ -111,6 +125,8 @@ Linux:
 - No terminal, execute o comando: `dot -Tpng ast.dot -o ast.png`
 
 - No terminal, agora deve executar o comando: `dot -Tpng dotFiles/data.dot -o dotFiles/png/data.png`
+
+`dot -Tpng dotFiles/equivChar.dot -o dotFiles/equivChar.png`
 
 ### EXECUÇÃO DO SINTAXE_CERTO.PS1 (WINDOWS):
 
