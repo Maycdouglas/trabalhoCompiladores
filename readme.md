@@ -96,11 +96,13 @@ Linux:
 
 ### Visits do Interpreter que não estão completos:
 
+- visitCmd
 - visitData
 - visitDataAbstract
 - visitDecl
 - visitDef
 - visitExpCallIndexed
+  Implementado
 - visitLValue
 - visitLValueField
 - visitLValueId

@@ -30,10 +30,10 @@ public class InterpreterVisitor implements Visitor<Object> {
     private Map<String, Value> currentScope() {
         return memoryStack.peek();
     }
-
+    // POSSO VIR AQUI E ALTERAR PARA return cmd.accept(this); SE NECESSÁRIO
     @Override
-    public Object visitCmd(Cmd exp) {
-        return null;
+    public Object visitCmd(Cmd cmd) {
+        throw new UnsupportedOperationException("visitCmd deve ser chamado apenas em subclasses concretas.");
     }
 
     private Value visitLvalExprFromLValue(LValue lv) {
@@ -365,8 +365,34 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpCallIndexed(ExpCallIndexed exp) {
-        return null;
+        // Avalia a chamada da função, espera-se uma lista de valores
+        Object result = exp.call.accept(this);
+        if (!(result instanceof List<?> results)) {
+            throw new RuntimeException("Function call did not return a list: " + result);
+        }
+
+        // Avalia o índice (deve ser um ExpInt)
+        Object indexObj = exp.index.accept(this);
+        if (!(indexObj instanceof ExpInt expInt)) {
+            throw new RuntimeException("Index must evaluate to an integer.");
+        }
+        int index = expInt.getValue();
+
+
+        // Verifica se o índice está dentro dos limites
+        if (index < 0 || index >= results.size()) {
+            throw new RuntimeException("Index out of bounds in ExpCallIndexed: " + index);
+        }
+
+        // Retorna o valor específico da lista
+        Object value = results.get(index);
+        if (!(value instanceof Value)) {
+            throw new RuntimeException("Expected a Value at index " + index);
+        }
+
+        return value;
     }
+
 
     @Override
     public Object visitExpChar(ExpChar exp) {
