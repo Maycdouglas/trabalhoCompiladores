@@ -6,7 +6,7 @@
 import ast.*;
 import parser.*;
 import error.SyntaxErrorListener;
-import interpreter.InterpreterVisitor; // Importa o visitor do interpretador
+import interpreter.*; 
 import semant.SemanticVisitor;
 
 // import codegen.JasminGeneratorVisitor; // Descomentar quando implementar

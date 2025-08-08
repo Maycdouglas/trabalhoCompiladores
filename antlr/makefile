@@ -37,5 +37,5 @@ run: compile
 # Limpeza
 clean:
 	@echo "Limpando arquivos gerados..."
-	rm -f parser/*.class ast/*.class error/*.class semant/*.class *.class
+	rm -f parser/*.class ast/*.class error/*.class interpreter/*.class semant/*.class *.class
 	rm -f parser/lang*.java parser/lang*.tokens parser/lang*.interp
