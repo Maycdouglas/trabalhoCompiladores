@@ -6,7 +6,7 @@
 import ast.*;
 import parser.*;
 import error.SyntaxErrorListener;
-import interpreter.*; 
+import interpreter.*;
 import semant.SemanticVisitor;
 
 // import codegen.JasminGeneratorVisitor; // Descomentar quando implementar
@@ -64,6 +64,7 @@ public class Main {
             switch (directive) {
                 case "-t":
                     semant();
+                    System.out.println("accept");
                     break;
                 case "-i":
                     semant();
