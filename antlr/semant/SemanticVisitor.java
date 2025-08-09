@@ -315,7 +315,7 @@ public class SemanticVisitor implements Visitor<Type> {
             }
         }
 
-        if ((leftType.baseType.equals("Float") || leftType.baseType.equals("Int")) &&
+        else if ((leftType.baseType.equals("Float") || leftType.baseType.equals("Int")) &&
                 (rightType.baseType.equals("Float") || rightType.baseType.equals("Int"))) {
             switch (expBinOp.op) {
                 case "+":
@@ -332,18 +332,15 @@ public class SemanticVisitor implements Visitor<Type> {
             }
         }
 
-        if (leftType.baseType.equals("Bool") && rightType.baseType.equals("Bool")) {
+        else if (leftType.baseType.equals("Bool") && rightType.baseType.equals("Bool")) {
             switch (expBinOp.op) {
                 case "&&":
-                    resultType = new Type("Bool", 0);
-                    break;
-                case "||":
                     resultType = new Type("Bool", 0);
                     break;
             }
         }
 
-        if (leftType.baseType.equals("Char") && rightType.baseType.equals("Char")) {
+        else if (leftType.baseType.equals("Char") && rightType.baseType.equals("Char")) {
             switch (expBinOp.op) {
                 case "==":
                 case "!=":
@@ -352,7 +349,7 @@ public class SemanticVisitor implements Visitor<Type> {
             }
         }
 
-        if (expBinOp.op.equals("==") || expBinOp.op.equals("!=")) {
+        else if (expBinOp.op.equals("==") || expBinOp.op.equals("!=")) {
             boolean leftIsNullable = delta.containsKey(leftType.baseType) || leftType.arrayDim > 0;
             boolean rightIsNullable = delta.containsKey(rightType.baseType) || rightType.arrayDim > 0;
 
