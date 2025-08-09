@@ -24,9 +24,11 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
     // Mapeia nomes de variáveis para seus índices na JVM (locais)
     private Map<String, Integer> locals = new HashMap<>();
     private int nextLocalIndex = 0;
+    private final Map<String, Data> delta;
 
-    public JasminGeneratorVisitor(String className) {
+    public JasminGeneratorVisitor(String className, Map<String, Data> delta) {
         this.className = className;
+        this.delta = delta;
     }
 
     /**
@@ -110,22 +112,28 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitCmdPrint(CmdPrint cmd) {
+        if (cmd.value instanceof ExpChar && ((ExpChar) cmd.value).value == '\n') {
+            emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
+            emit("invokevirtual java/io/PrintStream/println()V");
+            return null;
+        }
+
         emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
         cmd.value.accept(this);
 
         Type typeToPrint = cmd.value.expType;
         String descriptor = "";
         if (typeToPrint.baseType.equals("Int") || typeToPrint.baseType.equals("Bool")) {
-            descriptor = "I"; // Inteiro ou Booleano (0/1)
+            descriptor = "I";
         } else if (typeToPrint.baseType.equals("Float")) {
-            descriptor = "F"; // Float
+            descriptor = "F";
         } else if (typeToPrint.baseType.equals("Char")) {
-            descriptor = "C"; // Char
+            descriptor = "C";
         } else {
-            descriptor = "Ljava/lang/String;";
+            descriptor = "Ljava/lang/Object;";
         }
 
-        emit("invokevirtual java/io/PrintStream/println(" + descriptor + ")V");
+        emit("invokevirtual java/io/PrintStream/print(" + descriptor + ")V");
         return null;
     }
 
@@ -137,16 +145,14 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitCmdAssign(CmdAssign cmd) {
-        cmd.expression.accept(this);
-
         if (cmd.target instanceof LValueId) {
+            cmd.expression.accept(this);
             String varName = ((LValueId) cmd.target).id;
             int localIndex;
 
             if (!locals.containsKey(varName)) {
-                locals.put(varName, nextLocalIndex);
-                localIndex = nextLocalIndex;
-                nextLocalIndex++;
+                localIndex = nextLocalIndex++;
+                locals.put(varName, localIndex);
             } else {
                 localIndex = locals.get(varName);
             }
@@ -159,10 +165,50 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
             } else {
                 emit("astore " + localIndex);
             }
-        } else {
-            // TODO: Implementar atribuição para campos de 'data' e índices de array
+        } else if (cmd.target instanceof LValueIndex) {
+            LValueIndex target = (LValueIndex) cmd.target;
+
+            target.target.accept(this);
+            target.index.accept(this);
+            cmd.expression.accept(this);
+
+            Type elementType = cmd.expression.expType;
+            switch (elementType.baseType) {
+                case "Int":
+                case "Bool":
+                    emit("iastore");
+                    break;
+                case "Float":
+                    emit("fastore");
+                    break;
+                case "Char":
+                    emit("castore");
+                    break;
+                default:
+                    emit("aastore");
+                    break;
+            }
         }
         return null;
+    }
+
+    private String getJasminType(Type type) {
+        if (type.arrayDim > 0) {
+            // Constrói o descritor para um tipo array, ex: [I para Int[], [[C para Char[][]
+            return "[".repeat(type.arrayDim) + getJasminType(new Type(type.baseType, 0));
+        }
+        switch (type.baseType) {
+            case "Int":
+                return "I";
+            case "Float":
+                return "F";
+            case "Bool":
+                return "Z"; // Descritor JVM para boolean
+            case "Char":
+                return "C";
+            default:
+                return "L" + type.baseType + ";"; // Descritor para tipos de objeto/data
+        }
     }
 
     @Override
@@ -257,6 +303,22 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                 emit("goto " + loopStart);
 
                 emitLabel(loopEnd);
+
+            } else if (condType.baseType.equals("Bool")) {
+                String loopStart = newLabel();
+                String loopEnd = newLabel();
+
+                emitLabel(loopStart);
+
+                cond.expression.accept(this);
+
+                emit("ifeq " + loopEnd);
+
+                cmd.body.accept(this);
+
+                emit("goto " + loopStart);
+
+                emitLabel(loopEnd);
             }
 
         } else if (cmd.condition instanceof ItCondLabelled) {
@@ -267,27 +329,31 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                 String loopStart = newLabel();
                 String loopEnd = newLabel();
 
+                Integer shadowedVarIndex = locals.get(cond.label);
+
                 int loopVarIndex = nextLocalIndex++;
                 int limitIndex = nextLocalIndex++;
+
                 locals.put(cond.label, loopVarIndex);
 
                 cond.expression.accept(this);
                 emit("istore " + limitIndex);
-
                 emit("ldc 0");
                 emit("istore " + loopVarIndex);
-
                 emitLabel(loopStart);
                 emit("iload " + loopVarIndex);
                 emit("iload " + limitIndex);
                 emit("if_icmpge " + loopEnd);
-
                 cmd.body.accept(this);
-
                 emit("iinc " + loopVarIndex + " 1");
                 emit("goto " + loopStart);
-
                 emitLabel(loopEnd);
+
+                if (shadowedVarIndex != null) {
+                    locals.put(cond.label, shadowedVarIndex);
+                } else {
+                    locals.remove(cond.label);
+                }
             } else if (exprType.arrayDim > 0) {
                 String loopStart = newLabel();
                 String loopEnd = newLabel();
@@ -529,12 +595,65 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitExpIndex(ExpIndex exp) {
-        /* TODO */ return null;
+        exp.target.accept(this);
+        exp.index.accept(this);
+
+        Type elementType = exp.expType;
+        switch (elementType.baseType) {
+            case "Int":
+            case "Bool":
+                emit("iaload");
+                break;
+            case "Float":
+                emit("faload");
+                break;
+            case "Char":
+                emit("caload");
+                break;
+            default:
+                emit("aaload");
+                break;
+        }
+        return null;
     }
 
     @Override
     public Void visitExpNew(ExpNew exp) {
-        /* TODO */ return null;
+        if (exp.size != null) {
+            exp.size.accept(this);
+
+            Type elementType = exp.type;
+            if (elementType.arrayDim > 0) {
+                emit("anewarray " + getJasminType(elementType));
+            } else {
+                switch (elementType.baseType) {
+                    case "Int":
+                        emit("newarray int");
+                        break;
+                    case "Float":
+                        emit("newarray float");
+                        break;
+                    case "Bool":
+                        emit("newarray boolean");
+                        break;
+                    case "Char":
+                        emit("newarray char");
+                        break;
+                    default:
+                        emit("anewarray " + elementType.baseType);
+                        break;
+                }
+            }
+        }
+        // Caso 2: Criação de um 'data' (ex: new Ponto)
+        else {
+            // TODO: Implementar a instanciação de objetos 'data'.
+            // Exemplo:
+            // emit("new " + exp.type.baseType);
+            // emit("dup");
+            // emit("invokespecial " + exp.type.baseType + "/<init>()V");
+        }
+        return null;
     }
 
     @Override
@@ -583,12 +702,28 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitLValueId(LValueId lValueId) {
-        /* TODO */ return null;
+        int localIndex = locals.get(lValueId.id);
+        Type type = lValueId.expType;
+        if (type.arrayDim > 0 || delta.containsKey(type.baseType)) {
+            emit("aload " + localIndex);
+        } else {
+            emit("iload " + localIndex);
+        }
+        return null;
     }
 
     @Override
     public Void visitLValueIndex(LValueIndex lValueIndex) {
-        /* TODO */ return null;
+        lValueIndex.target.accept(this);
+        lValueIndex.index.accept(this);
+
+        Type elementType = lValueIndex.expType;
+        if (elementType.arrayDim > 0 || delta.containsKey(elementType.baseType)) {
+            emit("aaload");
+        } else {
+            emit("iaload");
+        }
+        return null;
     }
 
     @Override
