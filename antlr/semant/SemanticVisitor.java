@@ -30,6 +30,10 @@ public class SemanticVisitor implements Visitor<Type> {
         return gamma.peek();
     }
 
+    public Map<String, Data> getDelta() {
+        return this.delta;
+    }
+
     private Type findVar(String varName) {
         for (int i = gamma.size() - 1; i >= 0; i--) {
             Map<String, Type> scope = gamma.get(i);
@@ -405,7 +409,9 @@ public class SemanticVisitor implements Visitor<Type> {
         for (int i = gamma.size() - 1; i >= 0; i--) {
             Map<String, Type> scope = gamma.get(i);
             if (scope.containsKey(lValueId.id)) {
-                return scope.get(lValueId.id);
+                Type foundType = scope.get(lValueId.id);
+                lValueId.expType = foundType;
+                return foundType;
             }
         }
         return null;
@@ -660,24 +666,25 @@ public class SemanticVisitor implements Visitor<Type> {
                     + targetType.baseType);
         }
 
-        Data dataDef = delta.get(targetType.baseType);
+        Type fieldType = null;
 
+        Data dataDef = delta.get(targetType.baseType);
         if (dataDef instanceof DataRegular) {
             for (Decl decl : ((DataRegular) dataDef).declarations) {
                 if (decl.id.equals(lValueField.field)) {
-                    return decl.type;
-                }
-            }
-        } else if (dataDef instanceof DataAbstract) {
-            for (Decl decl : ((DataAbstract) dataDef).declarations) {
-                if (decl.id.equals(lValueField.field)) {
-                    return decl.type;
+                    fieldType = decl.type;
+                    break;
                 }
             }
         }
 
-        throw new RuntimeException(
-                "O tipo '" + targetType.baseType + "' não possui o campo '" + lValueField.field + "'.");
+        if (fieldType == null) {
+            throw new RuntimeException(
+                    "O tipo '" + targetType.baseType + "' não possui o campo '" + lValueField.field + "'.");
+        }
+
+        lValueField.expType = fieldType;
+        return fieldType;
     }
 
     @Override
@@ -693,7 +700,9 @@ public class SemanticVisitor implements Visitor<Type> {
             throw new RuntimeException("O índice de um array deve ser do tipo Int.");
         }
 
-        return new Type(targetType.baseType, targetType.arrayDim - 1);
+        Type resultType = new Type(targetType.baseType, targetType.arrayDim - 1);
+        lValueIndex.expType = resultType; // Anota o nó!
+        return resultType;
     }
 
     @Override
