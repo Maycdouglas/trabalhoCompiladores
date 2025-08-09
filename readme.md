@@ -64,11 +64,11 @@ Linux:
 5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/iterVarArr.lan`
    - CERTO
 6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/iterVarDec.lan`
-   - ERRADO, imprime 21, mas devia imprimir 11
+   - CERTO
 7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/read.lan`
    - CERTO
 8. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/teste0.lan`
-   - ERRADO, rodou, mas imprimiu nada.
+   - CERTO
 
 #### FUNCTION
 

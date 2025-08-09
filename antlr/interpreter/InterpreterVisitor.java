@@ -122,54 +122,48 @@ public class InterpreterVisitor implements Visitor<Object> {
     }
 
     @Override
-    public Object visitCmdIterate(CmdIterate cmd) {
-        if (cmd.condition instanceof ItCondLabelled) {
-            ItCondLabelled itCond = (ItCondLabelled) cmd.condition;
-            System.out.println("Variables in current scope: " + memory.currentScope().keySet());
-            Value iterable = (Value) itCond.expression.accept(this);
+public Object visitCmdIterate(CmdIterate cmd) {
+    if (cmd.condition instanceof ItCondLabelled itCond) {
+        // Laço com rótulo (ex: iterate(i: v))
+        Value iterable = (Value) itCond.expression.accept(this);
 
-            // memory.pushScope();
-            // Não faz pushScope() aqui para o laço rotulado,
-            // para que a variável label sobrescreva a variável externa
-
-            if (iterable instanceof ArrayValue) {
-                ArrayValue array = (ArrayValue) iterable;
-                for (Value element : array.getValues()) {
-                    memory.currentScope().put(itCond.label, element);
-                    cmd.body.accept(this); // Executa o corpo
-                }
-            } else if (iterable instanceof IntValue) {
-                int max = ((IntValue) iterable).getValue();
-                for (int i = 0; i < max; i++) {
-                    memory.currentScope().put(itCond.label, new IntValue(i));
-                    cmd.body.accept(this);
-                }
-
-            } else {
-                throw new UnsupportedOperationException("'iterate' com rótulo só suporta arrays ou inteiros.");
+        if (iterable instanceof ArrayValue array) {
+            for (Value element : array.getValues()) {
+                memory.currentScope().put(itCond.label, element);
+                cmd.body.accept(this);
             }
-
-            // memory.popScope();
-            // Não faz popScope() aqui também
-
+        } else if (iterable instanceof IntValue intVal) {
+            int max = intVal.getValue();
+            for (int i = 0; i < max; i++) {
+                memory.currentScope().put(itCond.label, new IntValue(i));
+                cmd.body.accept(this);
+            }
         } else {
-            // ItCondWhile
-            memory.pushScope(); // Cria um novo escopo para o laço
-            try{
-                 while (true) {
-                Value conditionValue = (Value) cmd.condition.accept(this);
-                if (conditionValue instanceof BoolValue && ((BoolValue) conditionValue).getValue()) {
+            throw new UnsupportedOperationException("'iterate' com rótulo só suporta arrays ou inteiros.");
+        }
+    } else if (cmd.condition instanceof ItCondExpr itCondExpr) {
+        // Laço sem rótulo (ex: iterate(nlines))
+        Value iterable = (Value) itCondExpr.expression.accept(this);
+
+        if (iterable instanceof IntValue intVal) {
+            int max = intVal.getValue();
+            memory.pushScope();
+            try {
+                for (int i = 0; i < max; i++) {
                     cmd.body.accept(this);
-                } else {
-                    break;
                 }
-            }
             } finally {
                 memory.popScope();
-            }           
+            }
+        } else {
+            throw new UnsupportedOperationException("'iterate' sem rótulo só suporta inteiros.");
         }
-        return null;
+    } else {
+        throw new UnsupportedOperationException("Tipo de condição de iterate não suportado.");
     }
+    return null;
+}
+
 
     @Override
     public Object visitCmdPrint(CmdPrint cmd) {
