@@ -19,6 +19,7 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 /**
  * @brief Classe principal que orquestra as fases do compilador.
@@ -32,6 +33,7 @@ public class Main {
     private static ParseTree tree;
     private static Prog ast;
     private static SyntaxErrorListener errorListener;
+    private static SemanticVisitor semanticVisitor;
 
     /**
      * @brief Ponto de entrada principal. Analisa os argumentos da linha de comando
@@ -134,7 +136,7 @@ public class Main {
      */
     public static void semant() {
         System.out.println("--- Executando Análise Semântica ---");
-        SemanticVisitor semanticVisitor = new SemanticVisitor();
+        semanticVisitor = new SemanticVisitor();
         try {
             ast.accept(semanticVisitor);
         } catch (RuntimeException e) {
@@ -160,7 +162,9 @@ public class Main {
         System.out.println("--- Gerando Código Jasmin ---");
         String baseName = getBaseName(inputPath);
 
-        JasminGeneratorVisitor jasminVisitor = new JasminGeneratorVisitor(baseName);
+        Map<String, Data> delta = semanticVisitor.getDelta();
+        JasminGeneratorVisitor jasminVisitor = new JasminGeneratorVisitor(baseName, delta);
+
         ast.accept(jasminVisitor);
         String jasminCode = jasminVisitor.getCode();
 
@@ -168,8 +172,7 @@ public class Main {
         FileWriter writer = new FileWriter(outFileName);
         writer.write(jasminCode);
         writer.close();
-        System.out.println("Código Jasmin gerado em: " + outFileName);
-
+        System.out.println("Código Jasmin gerado com sucesso em: " + outFileName);
     }
 
     /**
