@@ -4,7 +4,7 @@
 ANTLR_JAR := antlr-4.8-complete.jar
 MAIN_CLASS := Main
 # Adiciona o novo pacote 'semant' aos ficheiros fonte
-SOURCE_FILES := parser/*.java ast/*.java error/*.java semant/*.java Main.java
+SOURCE_FILES := parser/*.java ast/*.java error/*.java semant/*.java jasmin/*.java Main.java
 
 # Regras principais
 .PHONY: all clean run
@@ -37,5 +37,5 @@ run: compile
 # Limpeza
 clean:
 	@echo "Limpando arquivos gerados..."
-	rm -f parser/*.class ast/*.class error/*.class interpreter/*.class semant/*.class *.class
+	rm -f parser/*.class ast/*.class error/*.class interpreter/*.class semant/*.class jasmin/*.class *.class
 	rm -f parser/lang*.java parser/lang*.tokens parser/lang*.interp

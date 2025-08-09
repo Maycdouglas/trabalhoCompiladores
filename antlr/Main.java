@@ -8,6 +8,7 @@ import parser.*;
 import error.SyntaxErrorListener;
 import interpreter.*;
 import semant.SemanticVisitor;
+import jasmin.JasminGeneratorVisitor;
 
 // import codegen.JasminGeneratorVisitor; // Descomentar quando implementar
 
@@ -159,20 +160,16 @@ public class Main {
         System.out.println("--- Gerando Código Jasmin ---");
         String baseName = getBaseName(inputPath);
 
-        // Descomente as linhas abaixo quando o JasminGeneratorVisitor estiver pronto
-        /*
-         * JasminGeneratorVisitor jasminVisitor = new JasminGeneratorVisitor(baseName);
-         * ast.accept(jasminVisitor);
-         * String jasminCode = jasminVisitor.getCode();
-         * 
-         * String outFileName = baseName + ".j";
-         * FileWriter writer = new FileWriter(outFileName);
-         * writer.write(jasminCode);
-         * writer.close();
-         * System.out.println("Código Jasmin gerado em: " + outFileName);
-         */
+        JasminGeneratorVisitor jasminVisitor = new JasminGeneratorVisitor(baseName);
+        ast.accept(jasminVisitor);
+        String jasminCode = jasminVisitor.getCode();
 
-        System.out.println("Geração de código (-gen) ainda não implementada completamente.");
+        String outFileName = baseName + ".j";
+        FileWriter writer = new FileWriter(outFileName);
+        writer.write(jasminCode);
+        writer.close();
+        System.out.println("Código Jasmin gerado em: " + outFileName);
+
     }
 
     /**
