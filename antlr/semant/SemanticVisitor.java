@@ -296,6 +296,7 @@ public class SemanticVisitor implements Visitor<Type> {
     public Type visitExpBinOp(ExpBinOp expBinOp) {
         Type leftType = expBinOp.left.accept(this);
         Type rightType = expBinOp.right.accept(this);
+        Type resultType = null;
 
         if (leftType.baseType.equals("Int") && rightType.baseType.equals("Int")) {
             switch (expBinOp.op) {
@@ -304,11 +305,13 @@ public class SemanticVisitor implements Visitor<Type> {
                 case "*":
                 case "/":
                 case "%":
-                    return new Type("Int", 0);
+                    resultType = new Type("Int", 0);
+                    break;
                 case "==":
                 case "!=":
                 case "<":
-                    return new Type("Bool", 0);
+                    resultType = new Type("Bool", 0);
+                    break;
             }
         }
 
@@ -319,20 +322,24 @@ public class SemanticVisitor implements Visitor<Type> {
                 case "-":
                 case "*":
                 case "/":
-                    return new Type("Float", 0);
+                    resultType = new Type("Float", 0);
+                    break;
                 case "==":
                 case "!=":
                 case "<":
-                    return new Type("Bool", 0);
+                    resultType = new Type("Bool", 0);
+                    break;
             }
         }
 
         if (leftType.baseType.equals("Bool") && rightType.baseType.equals("Bool")) {
             switch (expBinOp.op) {
                 case "&&":
-                    return new Type("Bool", 0);
+                    resultType = new Type("Bool", 0);
+                    break;
                 case "||":
-                    return new Type("Bool", 0);
+                    resultType = new Type("Bool", 0);
+                    break;
             }
         }
 
@@ -340,7 +347,8 @@ public class SemanticVisitor implements Visitor<Type> {
             switch (expBinOp.op) {
                 case "==":
                 case "!=":
-                    return new Type("Bool", 0);
+                    resultType = new Type("Bool", 0);
+                    break;
             }
         }
 
@@ -350,37 +358,49 @@ public class SemanticVisitor implements Visitor<Type> {
 
             if ((leftIsNullable && rightType.baseType.equals("Null")) ||
                     (rightIsNullable && leftType.baseType.equals("Null"))) {
-                return new Type("Bool", 0);
+                resultType = new Type("Bool", 0);
             }
         }
 
-        throw new RuntimeException("Operação '" + expBinOp.op + "' inválida entre os tipos "
-                + leftType.baseType + " e " + rightType.baseType);
+        if (resultType == null) {
+            throw new RuntimeException("Operação '" + expBinOp.op + "' inválida entre os tipos "
+                    + leftType.baseType + " e " + rightType.baseType);
+        }
+
+        expBinOp.expType = resultType;
+        return resultType;
     }
 
     @Override
     public Type visitExpUnaryOp(ExpUnaryOp expUnaryOp) {
         Type expType = expUnaryOp.exp.accept(this);
+        Type resultType = null;
 
         switch (expUnaryOp.op) {
             case "!":
                 if (!expType.baseType.equals("Bool")) {
                     throw new RuntimeException("Operador '!' só pode ser aplicado a booleanos.");
                 }
-                return new Type("Bool", 0);
+                resultType = new Type("Bool", 0);
+                break;
             case "-":
                 if (!expType.baseType.equals("Int") && !expType.baseType.equals("Float")) {
                     throw new RuntimeException("Operador '-' só pode ser aplicado a números.");
                 }
-                return expType;
+                resultType = expType;
+                break;
             default:
                 throw new RuntimeException("Operador unário desconhecido: " + expUnaryOp.op);
         }
+
+        expUnaryOp.expType = resultType;
+        return resultType;
     }
 
     @Override
     public Type visitExpVar(ExpVar expVar) {
-        return findVar(expVar.name);
+        expVar.expType = findVar(expVar.name);
+        return expVar.expType;
     }
 
     @Override
@@ -396,27 +416,37 @@ public class SemanticVisitor implements Visitor<Type> {
 
     @Override
     public Type visitExpInt(ExpInt exp) {
-        return new Type("Int", 0);
+        Type intType = new Type("Int", 0);
+        exp.expType = intType;
+        return intType;
     }
 
     @Override
     public Type visitExpFloat(ExpFloat exp) {
-        return new Type("Float", 0);
+        Type floatType = new Type("Float", 0);
+        exp.expType = floatType;
+        return floatType;
     }
 
     @Override
     public Type visitExpChar(ExpChar exp) {
-        return new Type("Char", 0);
+        Type charType = new Type("Char", 0);
+        exp.expType = charType;
+        return charType;
     }
 
     @Override
     public Type visitExpBool(ExpBool exp) {
-        return new Type("Bool", 0);
+        Type boolType = new Type("Bool", 0);
+        exp.expType = boolType;
+        return boolType;
     }
 
     @Override
     public Type visitExpNull(ExpNull exp) {
-        return new Type("Null", 0);
+        Type nullType = new Type("Null", 0);
+        exp.expType = nullType;
+        return nullType;
     }
 
     @Override
@@ -482,7 +512,9 @@ public class SemanticVisitor implements Visitor<Type> {
                     "Função '" + exp.id + "' não possui valor de retorno para ser usada em uma expressão.");
         }
 
-        return funDef.retTypes.get(0);
+        Type returnType = funDef.retTypes.get(0);
+        exp.expType = returnType;
+        return returnType;
     }
 
     @Override
@@ -492,10 +524,24 @@ public class SemanticVisitor implements Visitor<Type> {
             throw new RuntimeException("Função '" + exp.call.id + "' não definida.");
         }
 
+        if (funDef.params.size() != exp.call.args.size()) {
+            throw new RuntimeException("Número incorreto de argumentos para a função '" + exp.call.id + "'.");
+        }
+        for (int i = 0; i < funDef.params.size(); i++) {
+            Type argType = exp.call.args.get(i).accept(this);
+            Type paramType = funDef.params.get(i).type;
+            if (!argType.baseType.equals(paramType.baseType) || argType.arrayDim != paramType.arrayDim) {
+                throw new RuntimeException(
+                        "Tipo incorreto para o argumento " + (i + 1) + " na chamada da função '" + exp.call.id + "'.");
+            }
+        }
+
         Type indexType = exp.index.accept(this);
         if (!indexType.baseType.equals("Int") || indexType.arrayDim > 0) {
             throw new RuntimeException("O índice de um retorno de função deve ser do tipo Int.");
         }
+
+        Type resultType = null;
 
         if (exp.index instanceof ExpInt) {
             int idx = ((ExpInt) exp.index).value;
@@ -503,16 +549,19 @@ public class SemanticVisitor implements Visitor<Type> {
                 throw new RuntimeException(
                         "Índice de retorno " + idx + " fora dos limites para a função '" + funDef.id + "'.");
             }
-            return funDef.retTypes.get(idx);
+            resultType = funDef.retTypes.get(idx);
+        } else {
+            if (funDef.retTypes.size() == 1) {
+                resultType = funDef.retTypes.get(0);
+            } else {
+                throw new RuntimeException(
+                        "Não é possível determinar estaticamente o tipo de retorno para a chamada indexada da função '"
+                                + funDef.id + "' com múltiplos retornos e índice não literal.");
+            }
         }
 
-        if (funDef.retTypes.size() == 1) {
-            return funDef.retTypes.get(0);
-        }
-
-        throw new RuntimeException(
-                "Não é possível determinar estaticamente o tipo de retorno para a chamada indexada da função '"
-                        + funDef.id + "' com múltiplos retornos e índice não literal.");
+        exp.expType = resultType;
+        return resultType;
     }
 
     @Override
@@ -525,22 +574,30 @@ public class SemanticVisitor implements Visitor<Type> {
         }
 
         Data dataDef = delta.get(targetType.baseType);
+        Type fieldType = null;
 
         if (dataDef instanceof DataRegular) {
             for (Decl decl : ((DataRegular) dataDef).declarations) {
                 if (decl.id.equals(exp.field)) {
-                    return decl.type;
+                    fieldType = decl.type;
+                    break;
                 }
             }
         } else if (dataDef instanceof DataAbstract) {
             for (Decl decl : ((DataAbstract) dataDef).declarations) {
                 if (decl.id.equals(exp.field)) {
-                    return decl.type;
+                    fieldType = decl.type;
+                    break;
                 }
             }
         }
 
-        throw new RuntimeException("O tipo '" + targetType.baseType + "' não possui o campo '" + exp.field + "'.");
+        if (fieldType == null) {
+            throw new RuntimeException("O tipo '" + targetType.baseType + "' não possui o campo '" + exp.field + "'.");
+        }
+
+        exp.expType = fieldType;
+        return fieldType;
     }
 
     @Override
@@ -556,23 +613,30 @@ public class SemanticVisitor implements Visitor<Type> {
             throw new RuntimeException("O índice de um array deve ser do tipo Int.");
         }
 
-        return new Type(targetType.baseType, targetType.arrayDim - 1);
+        Type resultType = new Type(targetType.baseType, targetType.arrayDim - 1);
+        exp.expType = resultType;
+        return resultType;
     }
 
     @Override
     public Type visitExpNew(ExpNew exp) {
+        Type resultType;
+
         if (exp.size != null) {
             Type sizeType = exp.size.accept(this);
             if (!sizeType.baseType.equals("Int") || sizeType.arrayDim > 0) {
                 throw new RuntimeException("O tamanho de um novo array deve ser um inteiro.");
             }
-            return new Type(exp.type.baseType, exp.type.arrayDim + 1);
+            resultType = new Type(exp.expType.baseType, exp.expType.arrayDim + 1);
+        } else {
+            if (!delta.containsKey(exp.expType.baseType)) {
+                throw new RuntimeException("Tipo '" + exp.expType.baseType + "' não definido.");
+            }
+            resultType = exp.expType;
         }
 
-        if (!delta.containsKey(exp.type.baseType)) {
-            throw new RuntimeException("Tipo '" + exp.type.baseType + "' não definido.");
-        }
-        return exp.type;
+        exp.expType = resultType;
+        return resultType;
     }
 
     @Override
