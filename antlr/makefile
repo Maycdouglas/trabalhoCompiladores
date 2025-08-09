@@ -1,41 +1,86 @@
-# Makefile para projeto ANTLR + Java (Linux)
+# ====================================================================
+# Makefile Simplificado para o Compilador da Linguagem Lang
+# Uso:
+#   make compile          - Compila o projeto
+#   make clean            - Remove arquivos gerados
+#   make run-semant <arq> - Executa a análise semântica
+#   make run-interp <arq> - Interpreta o arquivo
+#   make run-gen <arq>    - Gera, monta e executa o código Jasmin
+# ====================================================================
 
-# Variáveis
-ANTLR_JAR := antlr-4.8-complete.jar
-MAIN_CLASS := Main
-# Adiciona o novo pacote 'semant' aos ficheiros fonte
-SOURCE_FILES := parser/*.java ast/*.java error/*.java semant/*.java jasmin/*.java Main.java
+# --- Variáveis de Configuração ---
+ANTLR_JAR 		:= antlr-4.8-complete.jar
+JASMIN_JAR 		:= jasmin.jar
+MAIN_CLASS 		:= Main
 
-# Regras principais
-.PHONY: all clean run
+# MUDANÇA: Voltamos para uma definição de fontes mais simples para evitar erros.
+# Garanta que todas as suas pastas de código fonte estejam listadas aqui.
+SOURCE_FILES 	:= parser/*.java ast/*.java error/*.java semant/*.java interpreter/*.java jasmin/*.java Main.java
 
+# Ferramentas e Classpath
+JAVAC 			:= javac
+JAVA  			:= java
+CP 				:= ".:$(ANTLR_JAR)"
+
+# MUDANÇA: Captura o nome do arquivo passado após o alvo (ex: 'make run-gen arquivo.lan')
+# $(word 2, ...) pega a segunda palavra do comando.
+ARGS := $(word 2, $(MAKECMDGOALS))
+
+# --- Alvos Principais ---
+
+# Alvo padrão: compila tudo
 all: compile
 
-# Gera o parser a partir da gramática
-generate:
-	@echo "Gerando parser..."
-	java -jar $(ANTLR_JAR) -visitor -o ./ parser/lang.g4
-
-# Compila o projeto
+# Compila todos os arquivos .java do projeto
 compile: generate
-	@echo "Compilando..."
-	javac -cp ".:$(ANTLR_JAR)" $(SOURCE_FILES)
+	@echo "--- Compilando fontes Java... ---"
+	$(JAVAC) -cp $(CP) $(SOURCE_FILES)
 
-# Executa o programa (agora focado na análise semântica)
-run: compile
-	@echo "Executando com arquivo: $(word 2, $(MAKECMDGOALS))"
-	@if [ -z "$(word 2, $(MAKECMDGOALS))" ]; then \
-		echo "Por favor, especifique um arquivo: make run arquivo.lan"; \
-		exit 1; \
-	fi
-	java -cp ".:$(ANTLR_JAR)" $(MAIN_CLASS) $(word 2, $(MAKECMDGOALS))
+# Gera o Lexer e o Parser com ANTLR
+generate: parser/lang.g4
+	@echo "--- Gerando Lexer/Parser com ANTLR... ---"
+	$(JAVA) -jar $(ANTLR_JAR) -visitor -o ./parser parser/lang.g4
 
-# Ignora tentativas de fazer o make interpretar o nome do arquivo como um target
+# Limpa todos os arquivos gerados e compilados
+clean:
+	@echo "--- Limpando... ---"
+	rm -f parser/*.class ast/*.class error/*.class semant/*.class interpreter/*.class jasmin/*.class *.class *.j
+	rm -f parser/lang*.java parser/lang*.tokens parser/lang*.interp
+
+# --- Alvos de Execução ---
+
+# Extrai o nome base do arquivo (ex: 'assoc' de '../path/assoc.lan')
+BASENAME := $(basename $(notdir $(ARGS)))
+
+# Alvo para Análise Sintática (-syn)
+run-syn: compile
+	@echo "--- Executando Análise Sintática em $(ARGS)... ---"
+	$(JAVA) -cp $(CP) $(MAIN_CLASS) -syn $(ARGS)
+
+# Alvo para Análise Semântica (-t)
+run-semant: compile
+	@echo "--- Executando Análise Semântica em $(ARGS)... ---"
+	$(JAVA) -cp $(CP) $(MAIN_CLASS) -t $(ARGS)
+
+# Alvo para Interpretação (-i)
+run-interp: compile
+	@echo "--- Interpretando $(ARGS)... ---"
+	$(JAVA) -cp $(CP) $(MAIN_CLASS) -i $(ARGS)
+
+# Alvo para Geração de Código Jasmin (-gen) com Montagem e Execução
+run-gen: compile
+	@echo "\n--- [1/3] Gerando código Jasmin para $(ARGS)... ---"
+	$(JAVA) -cp $(CP) $(MAIN_CLASS) -gen $(ARGS)
+	
+	@echo "\n--- [2/3] Montando $(BASENAME).j com Jasmin... ---"
+	$(JAVA) -jar $(JASMIN_JAR) $(BASENAME).j
+	
+	@echo "\n--- [3/3] Executando $(BASENAME).class ---"
+	$(JAVA) -cp . $(BASENAME)
+
+# Ignora o nome do arquivo para que 'make' não o interprete como um alvo
 %:
 	@:
 
-# Limpeza
-clean:
-	@echo "Limpando arquivos gerados..."
-	rm -f parser/*.class ast/*.class error/*.class interpreter/*.class semant/*.class jasmin/*.class *.class *.j
-	rm -f parser/lang*.java parser/lang*.tokens parser/lang*.interp
+# Declara os alvos que não são nomes de arquivos
+.PHONY: all compile generate clean run-syn run-semant run-interp run-gen
