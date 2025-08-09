@@ -191,13 +191,20 @@ public Object visitCmdIterate(CmdIterate cmd) {
         return null;
     }
 
+    public class ReturnException extends RuntimeException {
+        public final List<Value> values;
+        public ReturnException(List<Value> values) {
+            this.values = values;
+        }
+    }
+
     @Override
     public Object visitCmdReturn(CmdReturn cmd) {
-        this.returnValues.clear();
+        List<Value> values = new ArrayList<>();
         for (Exp exp : cmd.values) {
-            this.returnValues.add((Value) exp.accept(this));
+            values.add((Value) exp.accept(this));
         }
-        return null;
+        throw new ReturnException(values);
     }
 
     @Override
@@ -345,35 +352,45 @@ public Object visitCmdIterate(CmdIterate cmd) {
         Map<String, Value> newScope = new HashMap<>();
         for (int i = 0; i < funDef.params.size(); i++) {
             String paramName = funDef.params.get(i).id;
-            Value argValue = (Value) exp.args.get(i).accept(this);
+            Object argEvaluated = exp.args.get(i).accept(this);
+            if (!(argEvaluated instanceof Value argValue)) {
+                throw new RuntimeException("Argumento inválido para parâmetro '" + paramName + "'");
+            }
             newScope.put(paramName, argValue);
         }
 
         memory.pushScope(newScope);
 
-        this.returnValues = null;
-        funDef.body.accept(this);
+        List<Value> ret;
+        try {
+            funDef.body.accept(this);
+            ret = new ArrayList<>(); // função terminou sem return
+        } catch (ReturnException e) {
+            ret = e.values;
+        }
 
         memory.popScope();
 
-        return this.returnValues;
+        return ret;
     }
+
+
 
     @Override
     public Object visitExpCallIndexed(ExpCallIndexed exp) {
         // Avalia a chamada da função, espera-se uma lista de valores
         Object result = exp.call.accept(this);
-        if (!(result instanceof List<?> results)) {
+        if (!(result instanceof List<?>)) {
             throw new RuntimeException("Function call did not return a list: " + result);
         }
+        List<?> results = (List<?>) result;
 
-        // Avalia o índice (deve ser um ExpInt)
+        // Avalia o índice
         Object indexObj = exp.index.accept(this);
-        if (!(indexObj instanceof ExpInt expInt)) {
+        if (!(indexObj instanceof IntValue intVal)) {
             throw new RuntimeException("Index must evaluate to an integer.");
         }
-        int index = expInt.getValue();
-
+        int index = intVal.getValue();
 
         // Verifica se o índice está dentro dos limites
         if (index < 0 || index >= results.size()) {
@@ -388,6 +405,7 @@ public Object visitCmdIterate(CmdIterate cmd) {
 
         return value;
     }
+
 
 
     @Override

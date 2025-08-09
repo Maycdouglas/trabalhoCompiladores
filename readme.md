@@ -75,13 +75,25 @@ Linux:
 1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/board.lan`
    - Exception in thread "main" java.lang.RuntimeException: Acesso a índice fora dos limites do array: 3
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/fib.lan`
-   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.util.List.clear()" because "this.returnValues" is null
+   - CERTO
 3. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/numeric.lan`
-   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.util.List.clear()" because "this.returnValues" is null
+   - ERRADO
+     - primeira impressão está errada
+       - errado
+         - 2.55
+       - certo
+         - 2.4065402
+     - segunda impressão está correta
+       1.4142135
 4. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/or_equiv.lan`
-   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.util.List.clear()" because "this.returnValues" is null
+   - CERTO
 5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/return.lan`
-   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.util.List.clear()" because "this.returnValues" is null
+   - ERRADO
+     - imprimiu na ordem errada
+       - errado
+         - false \n 3 \n a
+       - certo
+         - 3 \n a \n false
 6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/sort.lan`
    - ERRADO
      - imprime primeira linha corretamente, mas a segunda linha fica igual
@@ -89,7 +101,7 @@ Linux:
      - {123,345,21,12,0,94,1,6,3,2}
 7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/teste1.lan`
    - ERRADO
-     - Imprime o z incorretamente, o restante sai certo
+     - Exception in thread "main" interpreter.InterpreterVisitor$ReturnException
 
 #### FULL
 
