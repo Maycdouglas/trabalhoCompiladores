@@ -90,16 +90,15 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
     @Override
     public Void visitFun(Fun fun) {
         locals.clear();
-        nextLocalIndex = 0; // Para métodos estáticos, o índice 0 já está disponível para o primeiro
-                            // argumento.
+        nextLocalIndex = 0;
 
-        // TODO: Construir a assinatura do método com base nos parâmetros e retornos de
-        // 'fun'
-        String signature = "main([Ljava/lang/String;)V"; // Exemplo para main
+        String signature = "main([Ljava/lang/String;)V";
 
         emitHeader(".method public static " + signature);
-        emit("    .limit stack 20"); // TODO: Calcular dinamicamente
-        emit("    .limit locals 20"); // TODO: Calcular dinamicamente
+
+        emit(".limit stack 20");
+        emit(".limit locals 20");
+
         emitHeader("");
 
         fun.body.accept(this);
@@ -113,10 +112,20 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
     public Void visitCmdPrint(CmdPrint cmd) {
         emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
         cmd.value.accept(this);
-        // TODO: Determinar o tipo da expressão para chamar a sobrecarga correta do
-        // println
-        // Exemplo para Inteiro:
-        emit("invokevirtual java/io/PrintStream/println(I)V");
+
+        Type typeToPrint = cmd.value.expType;
+        String descriptor = "";
+        if (typeToPrint.baseType.equals("Int") || typeToPrint.baseType.equals("Bool")) {
+            descriptor = "I"; // Inteiro ou Booleano (0/1)
+        } else if (typeToPrint.baseType.equals("Float")) {
+            descriptor = "F"; // Float
+        } else if (typeToPrint.baseType.equals("Char")) {
+            descriptor = "C"; // Char
+        } else {
+            descriptor = "Ljava/lang/String;";
+        }
+
+        emit("invokevirtual java/io/PrintStream/println(" + descriptor + ")V");
         return null;
     }
 
@@ -128,18 +137,50 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitCmdAssign(CmdAssign cmd) {
-        // TODO: Implementar a geração de código para atribuição.
-        // 1. Avaliar a expressão do lado direito (o valor estará no topo da pilha).
-        // 2. Determinar o índice da variável local (LValueId).
-        // 3. Usar 'istore' (ou 'fstore', 'astore', etc.) para armazenar o valor.
+        cmd.expression.accept(this);
+
+        if (cmd.target instanceof LValueId) {
+            String varName = ((LValueId) cmd.target).id;
+            int localIndex;
+
+            if (!locals.containsKey(varName)) {
+                locals.put(varName, nextLocalIndex);
+                localIndex = nextLocalIndex;
+                nextLocalIndex++;
+            } else {
+                localIndex = locals.get(varName);
+            }
+
+            Type varType = cmd.expression.expType;
+            if (varType.baseType.equals("Int") || varType.baseType.equals("Bool") || varType.baseType.equals("Char")) {
+                emit("istore " + localIndex);
+            } else if (varType.baseType.equals("Float")) {
+                emit("fstore " + localIndex);
+            } else {
+                emit("astore " + localIndex);
+            }
+        } else {
+            // TODO: Implementar atribuição para campos de 'data' e índices de array
+        }
         return null;
     }
 
     @Override
     public Void visitExpVar(ExpVar expVar) {
-        // TODO: Implementar o carregamento de uma variável.
-        // 1. Obter o índice da variável a partir do mapa 'locals'.
-        // 2. Usar 'iload' (ou 'fload', 'aload', etc.) para carregar o valor na pilha.
+        if (!locals.containsKey(expVar.name)) {
+            throw new RuntimeException(
+                    "Erro do gerador: variável '" + expVar.name + "' não encontrada no mapa de locais.");
+        }
+        int localIndex = locals.get(expVar.name);
+
+        if (expVar.expType.baseType.equals("Int") || expVar.expType.baseType.equals("Bool")
+                || expVar.expType.baseType.equals("Char")) {
+            emit("iload " + localIndex);
+        } else if (expVar.expType.baseType.equals("Float")) {
+            emit("fload " + localIndex);
+        } else {
+            emit("aload " + localIndex);
+        }
         return null;
     }
 
@@ -163,9 +204,33 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         /* TODO */ return null;
     }
 
+    // Adicione estes métodos à sua classe jasmin/JasminGeneratorVisitor.java
+
+    /**
+     * @brief Gera código para o comando 'if' (com ou sem 'else').
+     *        Usa saltos condicionais para controlar o fluxo de execução.
+     */
     @Override
     public Void visitCmdIf(CmdIf cmd) {
-        /* TODO */ return null;
+        String elseLabel = newLabel();
+        String endLabel = newLabel();
+
+        cmd.condition.accept(this);
+
+        // "if equal" em Jasmin
+        emit("ifeq " + elseLabel);
+
+        cmd.thenBranch.accept(this);
+        emit("goto " + endLabel);
+
+        emitLabel(elseLabel);
+        if (cmd.elseBranch != null) {
+            cmd.elseBranch.accept(this);
+        }
+
+        emitLabel(endLabel);
+
+        return null;
     }
 
     @Override
@@ -175,7 +240,27 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitCmdRead(CmdRead cmd) {
-        /* TODO */ return null;
+        emit("new java/util/Scanner");
+        emit("dup");
+        emit("getstatic java/lang/System/in Ljava/io/InputStream;");
+        emit("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V");
+
+        // pilha.
+        emit("invokevirtual java/util/Scanner/nextInt()I");
+
+        if (cmd.lvalue instanceof LValueId) {
+            String varName = ((LValueId) cmd.lvalue).id;
+            if (!locals.containsKey(varName)) {
+                throw new RuntimeException(
+                        "Erro do gerador: variável '" + varName + "' do 'read' não foi previamente declarada.");
+            }
+            int localIndex = locals.get(varName);
+            emit("istore " + localIndex);
+        } else {
+            // TODO: Implementar 'read' para campos e arrays se necessário
+        }
+
+        return null;
     }
 
     @Override
@@ -215,9 +300,112 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    private Void handleBooleanShortCircuit(ExpBinOp exp) {
+        String endLabel = newLabel();
+
+        if (exp.op.equals("&&")) {
+            String falseLabel = newLabel();
+            exp.left.accept(this);
+            emit("ifeq " + falseLabel);
+
+            exp.right.accept(this);
+            emit("goto " + endLabel);
+
+            emitLabel(falseLabel);
+            emit("ldc 0");
+
+        }
+
+        emitLabel(endLabel);
+        return null;
+    }
+
     @Override
     public Void visitExpBinOp(ExpBinOp exp) {
-        /* TODO */ return null;
+
+        if (exp.op.equals("&&")) {
+            return handleBooleanShortCircuit(exp);
+        }
+
+        exp.left.accept(this);
+        exp.right.accept(this);
+
+        Type operandType = exp.left.expType;
+
+        String instructionPrefix = "";
+        if (operandType.baseType.equals("Int") || operandType.baseType.equals("Bool")
+                || operandType.baseType.equals("Char")) {
+            instructionPrefix = "i"; // iadd, isub, if_icmpeq
+        } else if (operandType.baseType.equals("Float")) {
+            instructionPrefix = "f"; // fadd, fsub, fcmpl
+        }
+
+        switch (exp.op) {
+            // Operações Aritméticas
+            case "+":
+                emit(instructionPrefix + "add");
+                break;
+            case "-":
+                emit(instructionPrefix + "sub");
+                break;
+            case "*":
+                emit(instructionPrefix + "mul");
+                break;
+            case "/":
+                emit(instructionPrefix + "div");
+                break;
+            case "%":
+                emit(instructionPrefix + "rem");
+                break;
+
+            // Comparações
+            case "==":
+            case "!=":
+            case "<":
+                String trueLabel = newLabel();
+                String endLabel = newLabel();
+
+                if (instructionPrefix.equals("i")) {
+                    switch (exp.op) {
+                        case "==":
+                            emit("if_icmpeq " + trueLabel);
+                            break;
+                        case "!=":
+                            emit("if_icmpne " + trueLabel);
+                            break;
+                        case "<":
+                            emit("if_icmplt " + trueLabel);
+                            break;
+                    }
+                } else { // Float
+                    emit("fcmpl");
+                    switch (exp.op) {
+                        case "==":
+                            emit("ifeq " + trueLabel);
+                            break;
+                        case "!=":
+                            emit("ifne " + trueLabel);
+                            break;
+                        case "<":
+                            emit("iflt " + trueLabel);
+                            break;
+                    }
+                }
+
+                emit("ldc 0"); // Empilha o valor 0 (false).
+                emit("goto " + endLabel);
+
+                emitLabel(trueLabel);
+                emit("ldc 1"); // Empilha o valor 1 (true).
+
+                emitLabel(endLabel);
+                break;
+
+            case "&&":
+            case "||":
+                break;
+        }
+        return null;
     }
 
     @Override
@@ -237,7 +425,8 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitExpChar(ExpChar exp) {
-        /* TODO */ return null;
+        emit("ldc " + (int) exp.value);
+        return null;
     }
 
     @Override
