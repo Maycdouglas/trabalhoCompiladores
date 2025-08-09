@@ -34,6 +34,10 @@ public class SemanticVisitor implements Visitor<Type> {
         return this.delta;
     }
 
+    public Map<String, Fun> getTheta() {
+        return this.theta;
+    }
+
     private Type findVar(String varName) {
         for (int i = gamma.size() - 1; i >= 0; i--) {
             Map<String, Type> scope = gamma.get(i);

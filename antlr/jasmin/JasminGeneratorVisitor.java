@@ -25,10 +25,12 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
     private Map<String, Integer> locals = new HashMap<>();
     private int nextLocalIndex = 0;
     private final Map<String, Data> delta;
+    private final Map<String, Fun> theta;
 
-    public JasminGeneratorVisitor(String className, Map<String, Data> delta) {
+    public JasminGeneratorVisitor(String className, Map<String, Data> delta, Map<String, Fun> theta) {
         this.className = className;
         this.delta = delta;
+        this.theta = theta;
     }
 
     /**
@@ -66,8 +68,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return "L" + (labelCounter++);
     }
 
-    // --- Métodos de Visita ---
-
     @Override
     public Void visitProg(Prog prog) {
         emitHeader(".class public " + className);
@@ -82,7 +82,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         emitHeader(".end method");
         emitHeader("");
 
-        // Visita todas as definições (funções e dados)
         for (Def def : prog.definitions) {
             def.accept(this);
         }
@@ -94,18 +93,39 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         locals.clear();
         nextLocalIndex = 0;
 
-        String signature = "main([Ljava/lang/String;)V";
+        StringBuilder signature = new StringBuilder();
+        signature.append(fun.id).append("(");
 
-        emitHeader(".method public static " + signature);
+        for (Param p : fun.params) {
+            signature.append(getJasminType(p.type));
+            locals.put(p.id, nextLocalIndex);
 
+            nextLocalIndex++;
+        }
+        signature.append(")");
+
+        if (fun.retTypes.isEmpty()) {
+            signature.append("V");
+        } else {
+            signature.append(getJasminType(fun.retTypes.get(0)));
+        }
+
+        if (fun.id.equals("main")) {
+            signature = new StringBuilder("main([Ljava/lang/String;)V");
+            nextLocalIndex = 1;
+        }
+
+        emitHeader(".method public static " + signature.toString());
         emit(".limit stack 20");
         emit(".limit locals 20");
-
         emitHeader("");
 
         fun.body.accept(this);
 
-        emit("return");
+        if (fun.retTypes.isEmpty()) {
+            emit("return");
+        }
+
         emitHeader(".end method");
         return null;
     }
@@ -419,7 +439,24 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitCmdReturn(CmdReturn cmd) {
-        /* TODO */ return null;
+        if (cmd.values.isEmpty()) {
+            emit("return");
+            return null;
+        }
+
+        // Pega o primeiro valor de retorno
+        Exp returnValue = cmd.values.get(0);
+        returnValue.accept(this);
+
+        Type returnType = returnValue.expType;
+        if (returnType.arrayDim > 0 || delta.containsKey(returnType.baseType)) {
+            emit("areturn");
+        } else if (returnType.baseType.equals("Float")) {
+            emit("freturn");
+        } else {
+            emit("ireturn");
+        }
+        return null;
     }
 
     @Override
@@ -574,7 +611,30 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitExpCallIndexed(ExpCallIndexed exp) {
-        /* TODO */ return null;
+        Fun funDef = theta.get(exp.call.id);
+        if (funDef == null) {
+            throw new RuntimeException("Erro do gerador: função '" + exp.call.id + "' não encontrada.");
+        }
+
+        for (Exp arg : exp.call.args) {
+            arg.accept(this);
+        }
+
+        StringBuilder signature = new StringBuilder();
+        signature.append(className).append("/").append(funDef.id).append("(");
+        for (Param p : funDef.params) {
+            signature.append(getJasminType(p.type));
+        }
+        signature.append(")");
+        if (funDef.retTypes.isEmpty()) {
+            signature.append("V");
+        } else {
+            signature.append(getJasminType(funDef.retTypes.get(0)));
+        }
+
+        emit("invokestatic " + signature.toString());
+
+        return null;
     }
 
     @Override

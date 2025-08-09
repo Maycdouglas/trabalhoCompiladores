@@ -163,7 +163,8 @@ public class Main {
         String baseName = getBaseName(inputPath);
 
         Map<String, Data> delta = semanticVisitor.getDelta();
-        JasminGeneratorVisitor jasminVisitor = new JasminGeneratorVisitor(baseName, delta);
+        Map<String, Fun> theta = semanticVisitor.getTheta();
+        JasminGeneratorVisitor jasminVisitor = new JasminGeneratorVisitor(baseName, delta, theta);
 
         ast.accept(jasminVisitor);
         String jasminCode = jasminVisitor.getCode();
