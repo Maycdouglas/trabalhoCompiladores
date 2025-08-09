@@ -16,38 +16,20 @@ import java.util.Stack;
 
 public class InterpreterVisitor implements Visitor<Object> {
 
-    private final Stack<Map<String, Value>> memoryStack = new Stack<>();
-    private final Map<String, Fun> functionDefinitions = new HashMap<>();
-    private final Map<String, Data> dataDefinitions = new HashMap<>();
+    private final Memory memory = new Memory();
     private final Scanner scanner = new Scanner(System.in);
-
-    private List<Value> returnValues = new ArrayList<>();
+    private List<Value> returnValues = new ArrayList<>(); // Lista para armazenar valores retornados por funções
+    // Deve ficar aqui, pois é temporário e só existe enquanto estamos processando uma função
 
     public InterpreterVisitor() {
-        memoryStack.push(new HashMap<>());
+        // Inicializa o escopo global
+        memory.pushScope();
     }
 
-    private Map<String, Value> currentScope() {
-        return memoryStack.peek();
-    }
     // POSSO VIR AQUI E ALTERAR PARA return cmd.accept(this); SE NECESSÁRIO
     @Override
     public Object visitCmd(Cmd cmd) {
         throw new UnsupportedOperationException("visitCmd deve ser chamado apenas em subclasses concretas.");
-    }
-
-    private Value visitLvalExprFromLValue(LValue lv) {
-        if (lv instanceof LValueId) {
-            return (Value) currentScope().get(((LValueId) lv).id);
-        }
-        if (lv instanceof LValueField) {
-            Value target = visitLvalExprFromLValue(((LValueField) lv).target);
-            if (target instanceof DataValue) {
-                return ((DataValue) target).getField(((LValueField) lv).field);
-            }
-        }
-        // Adicionar lógica para LValueIndex se necessário no futuro
-        throw new RuntimeException("Não é possível avaliar o LValue: " + lv.getClass().getSimpleName());
     }
 
     @Override
@@ -57,7 +39,7 @@ public class InterpreterVisitor implements Visitor<Object> {
         if (cmd.target instanceof LValueIndex) {
             LValueIndex lvalIndex = (LValueIndex) cmd.target;
             String arrayName = extractVarName(lvalIndex.target);
-            Value arrayVal = (Value) currentScope().get(arrayName);
+            Value arrayVal = (Value) memory.currentScope().get(arrayName);
             Value indexVal = (Value) lvalIndex.index.accept(this);
 
             if (arrayVal instanceof ArrayValue && indexVal instanceof IntValue) {
@@ -68,7 +50,7 @@ public class InterpreterVisitor implements Visitor<Object> {
             }
         } else if (cmd.target instanceof LValueId) {
             String varName = ((LValueId) cmd.target).id;
-            currentScope().put(varName, valueToAssign);
+            memory.currentScope().put(varName, valueToAssign);
         } else {
             throw new UnsupportedOperationException("Tipo de atribuição não suportado.");
         }
@@ -85,7 +67,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdCall(CmdCall cmd) {
-        Fun funDef = functionDefinitions.get(cmd.id);
+        Fun funDef = memory.getFunction(cmd.id);
         if (funDef == null) {
             throw new RuntimeException("Função '" + cmd.id + "' não definida.");
         }
@@ -99,12 +81,13 @@ public class InterpreterVisitor implements Visitor<Object> {
             Value argValue = (Value) cmd.args.get(i).accept(this);
             newScope.put(paramName, argValue);
         }
-        memoryStack.push(newScope);
+
+        memory.pushScope(newScope);
 
         this.returnValues.clear();
         funDef.body.accept(this);
 
-        memoryStack.pop();
+        memory.popScope();
 
         if (cmd.rets != null && cmd.rets.size() > 0) {
             if (cmd.rets.size() != this.returnValues.size()) {
@@ -116,7 +99,7 @@ public class InterpreterVisitor implements Visitor<Object> {
                 Value returnedValue = this.returnValues.get(i);
 
                 if (targetLval instanceof LValueId) {
-                    currentScope().put(((LValueId) targetLval).id, returnedValue);
+                    memory.currentScope().put(((LValueId) targetLval).id, returnedValue);
                 } else {
                     throw new UnsupportedOperationException(
                             "Atribuição de retorno múltiplo só suporta variáveis simples.");
@@ -145,19 +128,18 @@ public class InterpreterVisitor implements Visitor<Object> {
             ItCondLabelled itCond = (ItCondLabelled) cmd.condition;
             Value iterable = (Value) itCond.expression.accept(this);
 
-            Map<String, Value> loopScope = new HashMap<>();
-            memoryStack.push(loopScope);
+            memory.pushScope();
 
             if (iterable instanceof ArrayValue) {
                 ArrayValue array = (ArrayValue) iterable;
                 for (Value element : array.getValues()) {
-                    currentScope().put(itCond.label, element);
+                    memory.currentScope().put(itCond.label, element);
                     cmd.body.accept(this); // Executa o corpo
                 }
             } else if (iterable instanceof IntValue) {
                 int max = ((IntValue) iterable).getValue();
                 for (int i = 0; i < max; i++) {
-                    currentScope().put(itCond.label, new IntValue(i));
+                    memory.currentScope().put(itCond.label, new IntValue(i));
                     cmd.body.accept(this);
                 }
 
@@ -165,7 +147,7 @@ public class InterpreterVisitor implements Visitor<Object> {
                 throw new UnsupportedOperationException("'iterate' com rótulo só suporta arrays ou inteiros.");
             }
 
-            memoryStack.pop();
+            memory.popScope();
 
         } else {
             // ItCondWhile
@@ -195,10 +177,10 @@ public class InterpreterVisitor implements Visitor<Object> {
 
         if (scanner.hasNextInt()) {
             int value = scanner.nextInt();
-            currentScope().put(varName, new IntValue(value));
+            memory.currentScope().put(varName, new IntValue(value));
         } else if (scanner.hasNextFloat()) {
             float value = scanner.nextFloat();
-            currentScope().put(varName, new FloatValue(value));
+            memory.currentScope().put(varName, new FloatValue(value));
         } else {
             String input = scanner.next();
             System.err.println(
@@ -228,7 +210,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitDataRegular(DataRegular data) {
-        dataDefinitions.put(data.name, data);
+        memory.setDataDef(data.name, data);
         return null;
     }
 
@@ -337,7 +319,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpCall(ExpCall exp) {
-        Fun funDef = functionDefinitions.get(exp.id);
+        Fun funDef = memory.getFunction(exp.id);
         if (funDef == null) {
             throw new RuntimeException("Função '" + exp.id + "' não definida.");
         }
@@ -353,12 +335,12 @@ public class InterpreterVisitor implements Visitor<Object> {
             newScope.put(paramName, argValue);
         }
 
-        memoryStack.push(newScope);
+        memory.pushScope(newScope);
 
         this.returnValues = null;
         funDef.body.accept(this);
 
-        memoryStack.pop();
+        memory.popScope();
 
         return this.returnValues;
     }
@@ -443,8 +425,8 @@ public class InterpreterVisitor implements Visitor<Object> {
         }
 
         String typeName = exp.type.baseType;
-        if (dataDefinitions.containsKey(typeName)) {
-            DataRegular dataDef = (DataRegular) dataDefinitions.get(typeName);
+        if (memory.hasDataDef(typeName)) {
+            DataRegular dataDef = (DataRegular) memory.getDataDef(typeName);
             return new DataValue(dataDef);
         }
 
@@ -485,15 +467,15 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpVar(ExpVar exp) {
-        if (!currentScope().containsKey(exp.name)) {
+        if (!memory.currentScope().containsKey(exp.name)) {
             throw new RuntimeException("Variável não inicializada: " + exp.name);
         }
-        return currentScope().get(exp.name);
+        return memory.currentScope().get(exp.name);
     }
 
     @Override
     public Object visitFun(Fun fun) {
-        functionDefinitions.put(fun.id, fun);
+        memory.setFunction(fun.id, fun);
         return null;
     }
 
@@ -548,7 +530,7 @@ public class InterpreterVisitor implements Visitor<Object> {
             }
         }
 
-        Fun mainFunction = functionDefinitions.get("main");
+        Fun mainFunction = memory.getFunction("main");
         if (mainFunction != null) {
             mainFunction.body.accept(this);
         } else {
