@@ -73,24 +73,28 @@ Linux:
 #### FUNCTION
 
 1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/board.lan`
-   - Exception in thread "main" java.lang.UnsupportedOperationException: LValue não suportado: LValueIndex
+   - Exception in thread "main" java.lang.RuntimeException: Acesso a índice fora dos limites do array: 3
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/fib.lan`
-   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.util.List.clear()" because "this.returnValues" is null
 3. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/numeric.lan`
-   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.util.List.clear()" because "this.returnValues" is null
 4. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/or_equiv.lan`
-   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.util.List.clear()" because "this.returnValues" is null
 5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/return.lan`
-   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.util.List.clear()" because "this.returnValues" is null
 6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/sort.lan`
-   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+   - ERRADO
+     - imprime primeira linha corretamente, mas a segunda linha fica igual
+     - {123,345,21,12,0,94,1,6,3,2}
+     - {123,345,21,12,0,94,1,6,3,2}
 7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/teste1.lan`
-   - Imprime o z incorretamente, o restante sai certo
+   - ERRADO
+     - Imprime o z incorretamente, o restante sai certo
 
 #### FULL
 
 1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/AFD.lan`
-   - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
+   - Exception in thread "main" java.lang.UnsupportedOperationException: Tipo de atribuição não suportado.
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/linked.lan`
    - Exception in thread "main" java.lang.UnsupportedOperationException: Tipo de atribuição não suportado.
 
