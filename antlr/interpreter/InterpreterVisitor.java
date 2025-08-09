@@ -38,7 +38,7 @@ public class InterpreterVisitor implements Visitor<Object> {
         if (cmd.target instanceof LValueIndex) {
             LValueIndex lvalIndex = (LValueIndex) cmd.target;
             String arrayName = extractVarName(lvalIndex.target);
-            Value arrayVal = (Value) memory.currentScope().get(arrayName);
+            Value arrayVal = (Value) memory.lookup(arrayName);
             Value indexVal = (Value) lvalIndex.index.accept(this);
 
             if (arrayVal instanceof ArrayValue && indexVal instanceof IntValue) {
@@ -575,6 +575,9 @@ public class InterpreterVisitor implements Visitor<Object> {
     private String extractVarName(LValue lval) {
         if (lval instanceof LValueId idLval) {
             return idLval.id;
+        } else if (lval instanceof LValueIndex indexLval) {
+            // Recursivamente pega a base da cadeia de índices
+            return extractVarName(indexLval.target);
         }
         throw new UnsupportedOperationException("LValue não suportado: " + lval.getClass().getSimpleName());
     }

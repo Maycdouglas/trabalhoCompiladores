@@ -62,13 +62,13 @@ Linux:
 4. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/iterVar.lan`
    - CERTO
 5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/iterVarArr.lan`
-   - deu errado, 'iterate' com rótulo só suporta arrays por agora. Mas é array, ainda assim deu errado.
+   - CERTO
 6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/iterVarDec.lan`
-   - deu errado, 'iterate' com rótulo só suporta arrays por agora.
+   - ERRADO, imprime 21, mas devia imprimir 11
 7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/read.lan`
    - CERTO
 8. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/simple/teste0.lan`
-   - rodou, mas imprimiu nada.
+   - ERRADO, rodou, mas imprimiu nada.
 
 #### FUNCTION
 
@@ -85,7 +85,7 @@ Linux:
 6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/sort.lan`
    - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
 7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/teste1.lan`
-   - Imprime o z incorretamente, o restante sai certo, com as linhas vazias igual os anteriores
+   - Imprime o z incorretamente, o restante sai certo
 
 #### FULL
 
@@ -93,22 +93,6 @@ Linux:
    - Exception in thread "main" java.lang.NullPointerException: Cannot invoke "interpreter.Value.toString()" because "<local2>" is null
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/linked.lan`
    - Exception in thread "main" java.lang.UnsupportedOperationException: Tipo de atribuição não suportado.
-
-### Visits do Interpreter que não estão completos:
-
-- visitCmd
-- visitData
-- visitDataAbstract
-- visitDecl
-- visitDef
-- visitExpCallIndexed
-  Implementado
-- visitLValue
-- visitLValueField
-- visitLValueId
-- visitLValueIndex
-- visitParam
-- visitType
 
 `java -cp ".;antlr-4.8-complete.jar" Main teste.lan images`
 

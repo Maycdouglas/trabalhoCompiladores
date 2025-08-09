@@ -43,6 +43,17 @@ public class Memory {
         return memoryStack.peek();
     }
 
+    // Busca a variável pelo nome nos escopos, do topo para baixo
+    public Value lookup(String name) {
+        for (int i = memoryStack.size() - 1; i >= 0; i--) {
+            Map<String, Value> scope = memoryStack.get(i);
+            if (scope.containsKey(name)) {
+                return scope.get(name);
+            }
+        }
+        throw new RuntimeException("Variável não declarada: " + name);
+    }
+
     // ----------------------
     // Variáveis
     // ----------------------
