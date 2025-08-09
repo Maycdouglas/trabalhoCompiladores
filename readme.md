@@ -80,7 +80,7 @@ Linux:
    - ERRADO
      - primeira impressão está errada
        - errado
-         - 2.55
+         - 2.0
        - certo
          - 2.4065402
      - segunda impressão está correta
@@ -99,9 +99,9 @@ Linux:
      - imprime primeira linha corretamente, mas a segunda linha fica igual
      - {123,345,21,12,0,94,1,6,3,2}
      - {123,345,21,12,0,94,1,6,3,2}
+     - agora tá dando erro na hora de imprimir a segunda linha
 7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/teste1.lan`
-   - ERRADO
-     - Exception in thread "main" interpreter.InterpreterVisitor$ReturnException
+   - CERTO
 
 #### FULL
 
@@ -128,7 +128,7 @@ Linux:
 
 - No terminal, agora deve executar o comando: `dot -Tpng dotFiles/data.dot -o dotFiles/png/data.png`
 
-`dot -Tpng dotFiles/equivChar.dot -o dotFiles/equivChar.png`
+`dot -Tpng dotFiles/numeric.dot -o dotFiles/numeric.png`
 
 ### EXECUÇÃO DO SINTAXE_CERTO.PS1 (WINDOWS):
 

@@ -84,29 +84,37 @@ public class InterpreterVisitor implements Visitor<Object> {
         memory.pushScope(newScope);
 
         this.returnValues.clear();
-        funDef.body.accept(this);
 
-        memory.popScope();
+        List<Value> returned = null;
+        try {
+            // Executa o corpo da função UMA vez e captura valores retornados via exceção
+            funDef.body.accept(this);
+        } catch (ReturnException re) {
+            returned = re.getValues();
+        } finally {
+            memory.popScope();
+        }
 
-        if (cmd.rets != null && cmd.rets.size() > 0) {
-            if (cmd.rets.size() != this.returnValues.size()) {
+        if (cmd.rets != null && !cmd.rets.isEmpty()) {
+            if (returned == null) {
+                throw new RuntimeException("Função não retornou valores mas chamador esperava " + cmd.rets.size());
+            }
+            if (returned.size() != cmd.rets.size()) {
                 throw new RuntimeException("Número de variáveis de retorno (" + cmd.rets.size()
-                        + ") é diferente do número de valores retornados (" + this.returnValues.size() + ").");
+                        + ") é diferente do número de valores retornados (" + returned.size() + ").");
             }
             for (int i = 0; i < cmd.rets.size(); i++) {
                 LValue targetLval = cmd.rets.get(i);
-                Value returnedValue = this.returnValues.get(i);
-
+                Value returnedValue = returned.get(i);
                 if (targetLval instanceof LValueId) {
                     memory.currentScope().put(((LValueId) targetLval).id, returnedValue);
+                    System.out.println("Atribuiu retorno à variável " + ((LValueId) targetLval).id + " = " + returnedValue);
                 } else {
-                    throw new UnsupportedOperationException(
-                            "Atribuição de retorno múltiplo só suporta variáveis simples.");
+                    throw new UnsupportedOperationException("Atribuição de retorno múltiplo só suporta variáveis simples.");
                 }
             }
         }
 
-        this.returnValues.clear();
         return null;
     }
 
@@ -191,12 +199,12 @@ public Object visitCmdIterate(CmdIterate cmd) {
         return null;
     }
 
-    public class ReturnException extends RuntimeException {
-        public final List<Value> values;
-        public ReturnException(List<Value> values) {
-            this.values = values;
-        }
-    }
+    // public class ReturnException extends RuntimeException {
+    //     public final List<Value> values;
+    //     public ReturnException(List<Value> values) {
+    //         this.values = values;
+    //     }
+    // }
 
     @Override
     public Object visitCmdReturn(CmdReturn cmd) {
@@ -352,29 +360,26 @@ public Object visitCmdIterate(CmdIterate cmd) {
         Map<String, Value> newScope = new HashMap<>();
         for (int i = 0; i < funDef.params.size(); i++) {
             String paramName = funDef.params.get(i).id;
-            Object argEvaluated = exp.args.get(i).accept(this);
-            if (!(argEvaluated instanceof Value argValue)) {
-                throw new RuntimeException("Argumento inválido para parâmetro '" + paramName + "'");
-            }
+            Value argValue = (Value) exp.args.get(i).accept(this);
             newScope.put(paramName, argValue);
         }
 
         memory.pushScope(newScope);
 
-        List<Value> ret;
+        List<Value> returned = null;
         try {
+            // executa o corpo da função; caso um return ocorra, será jogada ReturnException
             funDef.body.accept(this);
-            ret = new ArrayList<>(); // função terminou sem return
-        } catch (ReturnException e) {
-            ret = e.values;
+        } catch (ReturnException re) {
+            returned = re.getValues();
+        } finally {
+            // garante que a stack de escopos seja restaurada
+            memory.popScope();
         }
 
-        memory.popScope();
-
-        return ret;
+        // se não houve return, devolve lista vazia (ou adapte conforme sua semântica)
+        return (returned != null) ? returned : new ArrayList<Value>();
     }
-
-
 
     @Override
     public Object visitExpCallIndexed(ExpCallIndexed exp) {
