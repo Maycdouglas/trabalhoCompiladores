@@ -22,8 +22,7 @@ public class InterpreterVisitor implements Visitor<Object> {
     // Deve ficar aqui, pois é temporário e só existe enquanto estamos processando uma função
 
     public InterpreterVisitor() {
-        // Inicializa o escopo global
-        memory.pushScope();
+        memory.pushScope();// Inicializa o escopo global
     }
 
     // POSSO VIR AQUI E ALTERAR PARA return cmd.accept(this); SE NECESSÁRIO
@@ -200,16 +199,28 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitData(Data data) {
-        return null;
+        if (data instanceof DataAbstract) {
+            return visitDataAbstract((DataAbstract) data);
+        } else if (data instanceof DataRegular) {
+            return visitDataRegular((DataRegular) data);
+        }
+        throw new RuntimeException("Tipo de data desconhecido: " + data.getClass().getName());
     }
 
     @Override
     public Object visitDataAbstract(DataAbstract data) {
+        // Armazena a definição do tipo abstrato
+        memory.setDataDef(data.name, data);
+        // Também registrar funções internas associadas ao tipo
+        for (Fun fun : data.internalFunctions) {
+            memory.setFunctionDef(fun.name, fun);
+        }
         return null;
     }
 
     @Override
     public Object visitDataRegular(DataRegular data) {
+        // Armazena a definição do tipo regular
         memory.setDataDef(data.name, data);
         return null;
     }
