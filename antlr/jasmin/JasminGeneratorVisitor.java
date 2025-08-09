@@ -204,12 +204,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         /* TODO */ return null;
     }
 
-    // Adicione estes métodos à sua classe jasmin/JasminGeneratorVisitor.java
-
-    /**
-     * @brief Gera código para o comando 'if' (com ou sem 'else').
-     *        Usa saltos condicionais para controlar o fluxo de execução.
-     */
     @Override
     public Void visitCmdIf(CmdIf cmd) {
         String elseLabel = newLabel();
@@ -233,7 +227,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-
     @Override
     public Void visitCmdIterate(CmdIterate cmd) {
         if (cmd.condition instanceof ItCondExpr) {
@@ -254,21 +247,19 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                 emit("istore " + counterIndex);
 
                 emitLabel(loopStart);
-                emit("iload " + counterIndex); 
-                emit("iload " + limitIndex); 
+                emit("iload " + counterIndex);
+                emit("iload " + limitIndex);
                 emit("if_icmpge " + loopEnd);
-
 
                 cmd.body.accept(this);
 
                 emit("iinc " + counterIndex + " 1");
-                emit("goto " + loopStart); 
+                emit("goto " + loopStart);
 
                 emitLabel(loopEnd);
             }
 
-        }
-        else if (cmd.condition instanceof ItCondLabelled) {
+        } else if (cmd.condition instanceof ItCondLabelled) {
             ItCondLabelled cond = (ItCondLabelled) cmd.condition;
             Type exprType = cond.expression.expType;
 
@@ -278,7 +269,7 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
                 int loopVarIndex = nextLocalIndex++;
                 int limitIndex = nextLocalIndex++;
-                locals.put(cond.label, loopVarIndex); 
+                locals.put(cond.label, loopVarIndex);
 
                 cond.expression.accept(this);
                 emit("istore " + limitIndex);
@@ -287,13 +278,13 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                 emit("istore " + loopVarIndex);
 
                 emitLabel(loopStart);
-                emit("iload " + loopVarIndex); 
-                emit("iload " + limitIndex); 
-                emit("if_icmpge " + loopEnd); 
+                emit("iload " + loopVarIndex);
+                emit("iload " + limitIndex);
+                emit("if_icmpge " + loopEnd);
 
                 cmd.body.accept(this);
 
-                emit("iinc " + loopVarIndex + " 1"); 
+                emit("iinc " + loopVarIndex + " 1");
                 emit("goto " + loopStart);
 
                 emitLabel(loopEnd);
@@ -304,7 +295,7 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                 int arrayIndex = nextLocalIndex++;
                 int counterIndex = nextLocalIndex++;
                 int loopVarIndex = nextLocalIndex++;
-                locals.put(cond.label, loopVarIndex); 
+                locals.put(cond.label, loopVarIndex);
 
                 cond.expression.accept(this);
                 emit("astore " + arrayIndex);
@@ -314,20 +305,20 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                 emit("istore " + counterIndex);
 
                 emitLabel(loopStart);
-                emit("iload " + counterIndex); 
-                emit("aload " + arrayIndex); 
+                emit("iload " + counterIndex);
+                emit("aload " + arrayIndex);
                 emit("arraylength");
-                emit("if_icmpge " + loopEnd); 
+                emit("if_icmpge " + loopEnd);
 
                 // Carrega o elemento: elem = array[j]
                 emit("aload " + arrayIndex);
                 emit("iload " + counterIndex);
-                emit("iaload"); 
+                emit("iaload");
                 emit("istore " + loopVarIndex);
 
                 cmd.body.accept(this);
 
-                emit("iinc " + counterIndex + " 1"); 
+                emit("iinc " + counterIndex + " 1");
                 emit("goto " + loopStart);
 
                 emitLabel(loopEnd);
