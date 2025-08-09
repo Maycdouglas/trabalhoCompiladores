@@ -125,9 +125,12 @@ public class InterpreterVisitor implements Visitor<Object> {
     public Object visitCmdIterate(CmdIterate cmd) {
         if (cmd.condition instanceof ItCondLabelled) {
             ItCondLabelled itCond = (ItCondLabelled) cmd.condition;
+            System.out.println("Variables in current scope: " + memory.currentScope().keySet());
             Value iterable = (Value) itCond.expression.accept(this);
 
-            memory.pushScope();
+            // memory.pushScope();
+            // Não faz pushScope() aqui para o laço rotulado,
+            // para que a variável label sobrescreva a variável externa
 
             if (iterable instanceof ArrayValue) {
                 ArrayValue array = (ArrayValue) iterable;
@@ -146,11 +149,14 @@ public class InterpreterVisitor implements Visitor<Object> {
                 throw new UnsupportedOperationException("'iterate' com rótulo só suporta arrays ou inteiros.");
             }
 
-            memory.popScope();
+            // memory.popScope();
+            // Não faz popScope() aqui também
 
         } else {
             // ItCondWhile
-            while (true) {
+            memory.pushScope(); // Cria um novo escopo para o laço
+            try{
+                 while (true) {
                 Value conditionValue = (Value) cmd.condition.accept(this);
                 if (conditionValue instanceof BoolValue && ((BoolValue) conditionValue).getValue()) {
                     cmd.body.accept(this);
@@ -158,6 +164,9 @@ public class InterpreterVisitor implements Visitor<Object> {
                     break;
                 }
             }
+            } finally {
+                memory.popScope();
+            }           
         }
         return null;
     }
@@ -478,10 +487,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpVar(ExpVar exp) {
-        if (!memory.currentScope().containsKey(exp.name)) {
-            throw new RuntimeException("Variável não inicializada: " + exp.name);
-        }
-        return memory.currentScope().get(exp.name);
+        return memory.lookup(exp.name);
     }
 
     @Override
