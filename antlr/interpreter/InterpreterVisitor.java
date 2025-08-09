@@ -212,8 +212,8 @@ public class InterpreterVisitor implements Visitor<Object> {
         // Armazena a definição do tipo abstrato
         memory.setDataDef(data.name, data);
         // Também registrar funções internas associadas ao tipo
-        for (Fun fun : data.internalFunctions) {
-            memory.setFunctionDef(fun.name, fun);
+        for (Fun fun : data.functions) {
+            memory.setFunction(fun.id, fun);
         }
         return null;
     }
@@ -513,17 +513,33 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitLValueField(LValueField lValueField) {
-        return null;
+        Value objVal = (Value) lValueField.target.accept(this);
+
+        if (objVal instanceof DataValue) {
+            return ((DataValue) objVal).getField(lValueField.field);
+        }
+        throw new RuntimeException("Tentativa de acessar campo de algo que não é um 'data'.");
     }
 
     @Override
     public Object visitLValueId(LValueId lValueId) {
-        return null;
+        String varName = lValueId.id;
+        if (!memory.currentScope().containsKey(varName)) {
+            throw new RuntimeException("Variável não inicializada: " + varName);
+        }
+        return memory.currentScope().get(varName);
     }
 
     @Override
     public Object visitLValueIndex(LValueIndex lValueIndex) {
-        return null;
+        Value arrayVal = (Value) lValueIndex.target.accept(this);
+        Value indexVal = (Value) lValueIndex.index.accept(this);
+
+        if (arrayVal instanceof ArrayValue && indexVal instanceof IntValue) {
+            int index = ((IntValue) indexVal).getValue();
+            return ((ArrayValue) arrayVal).get(index);
+        }
+        throw new RuntimeException("Indexação inválida.");
     }
 
     @Override
