@@ -233,9 +233,107 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+
     @Override
     public Void visitCmdIterate(CmdIterate cmd) {
-        /* TODO */ return null;
+        if (cmd.condition instanceof ItCondExpr) {
+            ItCondExpr cond = (ItCondExpr) cmd.condition;
+            Type condType = cond.expression.expType;
+
+            if (condType.baseType.equals("Int")) {
+                String loopStart = newLabel();
+                String loopEnd = newLabel();
+
+                int counterIndex = nextLocalIndex++;
+                int limitIndex = nextLocalIndex++;
+
+                cond.expression.accept(this);
+                emit("istore " + limitIndex);
+
+                emit("ldc 0");
+                emit("istore " + counterIndex);
+
+                emitLabel(loopStart);
+                emit("iload " + counterIndex); 
+                emit("iload " + limitIndex); 
+                emit("if_icmpge " + loopEnd);
+
+
+                cmd.body.accept(this);
+
+                emit("iinc " + counterIndex + " 1");
+                emit("goto " + loopStart); 
+
+                emitLabel(loopEnd);
+            }
+
+        }
+        else if (cmd.condition instanceof ItCondLabelled) {
+            ItCondLabelled cond = (ItCondLabelled) cmd.condition;
+            Type exprType = cond.expression.expType;
+
+            if (exprType.baseType.equals("Int") && exprType.arrayDim == 0) {
+                String loopStart = newLabel();
+                String loopEnd = newLabel();
+
+                int loopVarIndex = nextLocalIndex++;
+                int limitIndex = nextLocalIndex++;
+                locals.put(cond.label, loopVarIndex); 
+
+                cond.expression.accept(this);
+                emit("istore " + limitIndex);
+
+                emit("ldc 0");
+                emit("istore " + loopVarIndex);
+
+                emitLabel(loopStart);
+                emit("iload " + loopVarIndex); 
+                emit("iload " + limitIndex); 
+                emit("if_icmpge " + loopEnd); 
+
+                cmd.body.accept(this);
+
+                emit("iinc " + loopVarIndex + " 1"); 
+                emit("goto " + loopStart);
+
+                emitLabel(loopEnd);
+            } else if (exprType.arrayDim > 0) {
+                String loopStart = newLabel();
+                String loopEnd = newLabel();
+
+                int arrayIndex = nextLocalIndex++;
+                int counterIndex = nextLocalIndex++;
+                int loopVarIndex = nextLocalIndex++;
+                locals.put(cond.label, loopVarIndex); 
+
+                cond.expression.accept(this);
+                emit("astore " + arrayIndex);
+
+                // Inicializa o contador j = 0
+                emit("ldc 0");
+                emit("istore " + counterIndex);
+
+                emitLabel(loopStart);
+                emit("iload " + counterIndex); 
+                emit("aload " + arrayIndex); 
+                emit("arraylength");
+                emit("if_icmpge " + loopEnd); 
+
+                // Carrega o elemento: elem = array[j]
+                emit("aload " + arrayIndex);
+                emit("iload " + counterIndex);
+                emit("iaload"); 
+                emit("istore " + loopVarIndex);
+
+                cmd.body.accept(this);
+
+                emit("iinc " + counterIndex + " 1"); 
+                emit("goto " + loopStart);
+
+                emitLabel(loopEnd);
+            }
+        }
+        return null;
     }
 
     @Override
@@ -245,7 +343,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         emit("getstatic java/lang/System/in Ljava/io/InputStream;");
         emit("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V");
 
-        // pilha.
         emit("invokevirtual java/util/Scanner/nextInt()I");
 
         if (cmd.lvalue instanceof LValueId) {

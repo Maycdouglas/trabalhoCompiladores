@@ -624,12 +624,12 @@ public class SemanticVisitor implements Visitor<Type> {
             if (!sizeType.baseType.equals("Int") || sizeType.arrayDim > 0) {
                 throw new RuntimeException("O tamanho de um novo array deve ser um inteiro.");
             }
-            resultType = new Type(exp.expType.baseType, exp.expType.arrayDim + 1);
+            resultType = new Type(exp.type.baseType, exp.type.arrayDim + 1);
         } else {
-            if (!delta.containsKey(exp.expType.baseType)) {
-                throw new RuntimeException("Tipo '" + exp.expType.baseType + "' não definido.");
+            if (!delta.containsKey(exp.type.baseType)) {
+                throw new RuntimeException("Tipo '" + exp.type.baseType + "' não definido.");
             }
-            resultType = exp.expType;
+            resultType = exp.type;
         }
 
         exp.expType = resultType;
