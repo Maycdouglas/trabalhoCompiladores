@@ -108,7 +108,6 @@ public class InterpreterVisitor implements Visitor<Object> {
                 Value returnedValue = returned.get(i);
                 if (targetLval instanceof LValueId) {
                     memory.currentScope().put(((LValueId) targetLval).id, returnedValue);
-                    System.out.println("Atribuiu retorno à variável " + ((LValueId) targetLval).id + " = " + returnedValue);
                 } else {
                     throw new UnsupportedOperationException("Atribuição de retorno múltiplo só suporta variáveis simples.");
                 }
@@ -368,50 +367,42 @@ public Object visitCmdIterate(CmdIterate cmd) {
 
         List<Value> returned = null;
         try {
-            // executa o corpo da função; caso um return ocorra, será jogada ReturnException
             funDef.body.accept(this);
         } catch (ReturnException re) {
             returned = re.getValues();
         } finally {
-            // garante que a stack de escopos seja restaurada
             memory.popScope();
         }
 
-        // se não houve return, devolve lista vazia (ou adapte conforme sua semântica)
-        return (returned != null) ? returned : new ArrayList<Value>();
+        if (returned == null) {
+            returned = new ArrayList<>();
+        }
+
+        ArrayValue arrayValue = new ArrayValue(returned.size());
+        for (int i = 0; i < returned.size(); i++) {
+            arrayValue.set(i, returned.get(i));
+        }
+
+        return arrayValue;
     }
+
 
     @Override
     public Object visitExpCallIndexed(ExpCallIndexed exp) {
-        // Avalia a chamada da função, espera-se uma lista de valores
         Object result = exp.call.accept(this);
-        if (!(result instanceof List<?>)) {
-            throw new RuntimeException("Function call did not return a list: " + result);
-        }
-        List<?> results = (List<?>) result;
 
-        // Avalia o índice
+        if (!(result instanceof ArrayValue arr)) {
+            throw new RuntimeException("Function call did not return an array: " + result);
+        }
+
         Object indexObj = exp.index.accept(this);
         if (!(indexObj instanceof IntValue intVal)) {
             throw new RuntimeException("Index must evaluate to an integer.");
         }
         int index = intVal.getValue();
 
-        // Verifica se o índice está dentro dos limites
-        if (index < 0 || index >= results.size()) {
-            throw new RuntimeException("Index out of bounds in ExpCallIndexed: " + index);
-        }
-
-        // Retorna o valor específico da lista
-        Object value = results.get(index);
-        if (!(value instanceof Value)) {
-            throw new RuntimeException("Expected a Value at index " + index);
-        }
-
-        return value;
+        return arr.get(index);
     }
-
-
 
     @Override
     public Object visitExpChar(ExpChar exp) {

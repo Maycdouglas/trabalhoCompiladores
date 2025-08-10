@@ -88,12 +88,8 @@ Linux:
 4. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/or_equiv.lan`
    - CERTO
 5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/return.lan`
-   - ERRADO
-     - imprimiu na ordem errada
-       - errado
-         - false \n 3 \n a
-       - certo
-         - 3 \n a \n false
+   - CERTO
+     - AO MENOS PARA MIM ESTÁ
 6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/sort.lan`
    - ERRADO
      - imprime primeira linha corretamente, mas a segunda linha fica igual

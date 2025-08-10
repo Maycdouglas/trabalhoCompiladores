@@ -13,6 +13,10 @@ public class LValueId extends LValue {
         this.id = id;
     }
 
+    public String getId() {
+        return id;
+    }
+
     @Override
     public String toDot(String parentId) {
         String idNode = "LValueId" + hashCode();
