@@ -95,7 +95,7 @@ Linux:
      - imprime primeira linha corretamente, mas a segunda linha fica igual
      - {123,345,21,12,0,94,1,6,3,2}
      - {123,345,21,12,0,94,1,6,3,2}
-     - agora tá dando erro na hora de imprimir a segunda linha
+     - vai dar errado no semantico
 7. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/teste1.lan`
    - CERTO
 
@@ -104,7 +104,26 @@ Linux:
 1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/AFD.lan`
    - Exception in thread "main" java.lang.UnsupportedOperationException: Tipo de atribuição não suportado.
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/linked.lan`
-   - Exception in thread "main" java.lang.UnsupportedOperationException: Tipo de atribuição não suportado.
+   - CERTO
+
+#### TYPES - SIMPLE
+
+1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/simple/scope.lan`
+
+#### TYPES - FUNCTION
+
+#### TYPES - FULL
+
+#### TYPES - ERRADO
+
+1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/errado/errado1.lan`
+2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/errado/errado2.lan`
+3. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/errado/errado3.lan`
+4. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/errado/errado4.lan`
+5. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/errado/errado5.lan`
+6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/errado/errado6.lan`
+7. `
+`
 
 `java -cp ".;antlr-4.8-complete.jar" Main teste.lan images`
 

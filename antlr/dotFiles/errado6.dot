@@ -1,0 +1,29 @@
+digraph AST {
+"Prog116211441" [label="Prog"];
+"Fun1603195447" [label="Fun: main"];
+"Prog116211441" -> "Fun1603195447";
+"CmdBlock792791759" [label="Block"];
+"Fun1603195447" -> "CmdBlock792791759";
+"CmdAssign1191747167" [label="Assign"];
+"CmdBlock792791759" -> "CmdAssign1191747167";
+"LValueId1094834071" [label="LValueId: x"];
+"CmdAssign1191747167" -> "LValueId1094834071";
+"ExpInt1761061602" [label="Int: 10"];
+"CmdAssign1191747167" -> "ExpInt1761061602";
+"CmdIterate1330106945" [label="Iterate"];
+"CmdBlock792791759" -> "CmdIterate1330106945";
+"ItCondLabelled1279149968" [label="ItCondLabelled: z"];
+"CmdIterate1330106945" -> "ItCondLabelled1279149968";
+"ExpInt59559151" [label="Int: 10"];
+"ItCondLabelled1279149968" -> "ExpInt59559151";
+"CmdBlock1450821318" [label="Block"];
+"CmdIterate1330106945" -> "CmdBlock1450821318";
+"CmdPrint668849042" [label="Print"];
+"CmdBlock1450821318" -> "CmdPrint668849042";
+"ExpChar434176574" [label="Char: *"];
+"CmdPrint668849042" -> "ExpChar434176574";
+"CmdPrint2096057945" [label="Print"];
+"CmdBlock792791759" -> "CmdPrint2096057945";
+"ExpVar1689843956" [label="Var: z"];
+"CmdPrint2096057945" -> "ExpVar1689843956";
+}

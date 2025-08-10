@@ -36,6 +36,7 @@ public class InterpreterVisitor implements Visitor<Object> {
         Value valueToAssign = (Value) cmd.expression.accept(this);
 
         if (cmd.target instanceof LValueIndex) {
+            // Atribuição em array
             LValueIndex lvalIndex = (LValueIndex) cmd.target;
             String arrayName = extractVarName(lvalIndex.target);
             Value arrayVal = (Value) memory.lookup(arrayName);
@@ -47,14 +48,30 @@ public class InterpreterVisitor implements Visitor<Object> {
             } else {
                 throw new RuntimeException("Atribuição inválida em array.");
             }
+
+        } else if (cmd.target instanceof LValueField) {
+            // Atribuição em campo de data
+            LValueField lvalField = (LValueField) cmd.target;
+            Value objVal = (Value) lvalField.target.accept(this);
+
+            if (!(objVal instanceof DataValue)) {
+                throw new RuntimeException("Tentativa de atribuir campo em algo que não é um 'data'.");
+            }
+
+            ((DataValue) objVal).setField(lvalField.field, valueToAssign);
+
         } else if (cmd.target instanceof LValueId) {
+            // Atribuição direta a variável
             String varName = ((LValueId) cmd.target).id;
             memory.currentScope().put(varName, valueToAssign);
+
         } else {
             throw new UnsupportedOperationException("Tipo de atribuição não suportado.");
         }
+
         return null;
     }
+
 
     @Override
     public Object visitCmdBlock(CmdBlock cmd) {
@@ -262,6 +279,23 @@ public Object visitCmdIterate(CmdIterate cmd) {
         Value left = (Value) exp.left.accept(this);
         Value right = (Value) exp.right.accept(this);
 
+        // Tratamento de comparação envolvendo NullValue
+        if (exp.op.equals("==")) {
+            if (left instanceof NullValue && right instanceof NullValue) {
+                return new BoolValue(true);
+            }
+            if (left instanceof NullValue || right instanceof NullValue) {
+                return new BoolValue(false);
+            }
+        } else if (exp.op.equals("!=")) {
+            if (left instanceof NullValue && right instanceof NullValue) {
+                return new BoolValue(false);
+            }
+            if (left instanceof NullValue || right instanceof NullValue) {
+                return new BoolValue(true);
+            }
+        }
+
         if (left instanceof IntValue && right instanceof IntValue) {
             int l = ((IntValue) left).getValue();
             int r = ((IntValue) right).getValue();
@@ -307,7 +341,6 @@ public Object visitCmdIterate(CmdIterate cmd) {
             }
         }
 
-        // Comparação entre CharValue
         if (left instanceof CharValue && right instanceof CharValue) {
             char l = ((CharValue) left).getValue();
             char r = ((CharValue) right).getValue();
@@ -321,7 +354,6 @@ public Object visitCmdIterate(CmdIterate cmd) {
             }
         }
 
-        // Coerção automática de IntValue para BoolValue, apenas para && e ||
         if ((exp.op.equals("&&") || exp.op.equals("||")) &&
             (left instanceof IntValue || left instanceof BoolValue) &&
             (right instanceof IntValue || right instanceof BoolValue)) {
@@ -335,10 +367,10 @@ public Object visitCmdIterate(CmdIterate cmd) {
             return new BoolValue(exp.op.equals("&&") ? (l && r) : (l || r));
         }
 
-
         throw new RuntimeException("Operação binária não suportada: " + left.getClass().getSimpleName() + " " + exp.op
                 + " " + right.getClass().getSimpleName());
     }
+
 
     @Override
     public Object visitExpBool(ExpBool exp) {
