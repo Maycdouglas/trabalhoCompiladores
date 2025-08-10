@@ -1,6 +1,9 @@
 /* Feito por:
+
  FREDERICO DÔNDICI GAMA VIEIRA - 202165037AC
+
  MAYCON DOUGLAS HENRIQUE DA SILVA GOMES - 202065570C
+
 */
 
 package jasmin;
@@ -178,11 +181,15 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
             }
 
             Type varType = cmd.expression.expType;
-            if (varType.baseType.equals("Int") || varType.baseType.equals("Bool") || varType.baseType.equals("Char")) {
-                emit("istore " + localIndex);
+            if (varType.arrayDim > 0 || delta.containsKey(varType.baseType)) {
+                emit("astore " + localIndex);
             } else if (varType.baseType.equals("Float")) {
                 emit("fstore " + localIndex);
+            } else if (varType.baseType.equals("Int") || varType.baseType.equals("Bool")
+                    || varType.baseType.equals("Char")) {
+                emit("istore " + localIndex);
             } else {
+                // Fallback seguro para referências
                 emit("astore " + localIndex);
             }
         } else if (cmd.target instanceof LValueIndex) {
@@ -239,7 +246,9 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         }
         int localIndex = locals.get(expVar.name);
 
-        if (expVar.expType.baseType.equals("Int") || expVar.expType.baseType.equals("Bool")
+        if (expVar.expType.arrayDim > 0 || delta.containsKey(expVar.expType.baseType)) {
+            emit("aload " + localIndex);
+        } else if (expVar.expType.baseType.equals("Int") || expVar.expType.baseType.equals("Bool")
                 || expVar.expType.baseType.equals("Char")) {
             emit("iload " + localIndex);
         } else if (expVar.expType.baseType.equals("Float")) {
@@ -249,8 +258,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         }
         return null;
     }
-
-    // --- Placeholders para os métodos restantes ---
 
     @Override
     public Void visitCmd(Cmd exp) {
@@ -267,7 +274,44 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitCmdCall(CmdCall cmd) {
-        /* TODO */ return null;
+        Fun funDef = theta.get(cmd.id);
+        if (funDef == null) {
+            throw new RuntimeException("Erro do gerador: função '" + cmd.id + "' não encontrada.");
+        }
+
+        for (Exp arg : cmd.args) {
+            arg.accept(this);
+        }
+
+        StringBuilder signature = new StringBuilder();
+        signature.append(className).append("/").append(funDef.id).append("(");
+        for (Param p : funDef.params) {
+            signature.append(getJasminType(p.type));
+        }
+        signature.append(")");
+
+        if (funDef.retTypes.isEmpty()) {
+            signature.append("V");
+        } else {
+            signature.append(getJasminType(funDef.retTypes.get(0)));
+        }
+
+        emit("invokestatic " + signature.toString());
+
+        if (!funDef.retTypes.isEmpty() && (cmd.rets == null || cmd.rets.isEmpty())) {
+            emit("pop");
+        }
+
+        if (cmd.rets != null && !cmd.rets.isEmpty()) {
+            LValue firstRet = cmd.rets.get(0);
+            if (firstRet instanceof LValueId) {
+                String varName = ((LValueId) firstRet).id;
+                int localIndex = locals.get(varName);
+                emit("istore " + localIndex);
+            }
+        }
+
+        return null;
     }
 
     @Override
@@ -295,20 +339,20 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitCmdIterate(CmdIterate cmd) {
+        // Caso 1: iterate(expr) - Pode ser um 'for' (Int) ou 'while' (Bool)
         if (cmd.condition instanceof ItCondExpr) {
             ItCondExpr cond = (ItCondExpr) cmd.condition;
             Type condType = cond.expression.expType;
 
+            // Comportamento como "for" para tipos Int
             if (condType.baseType.equals("Int")) {
                 String loopStart = newLabel();
                 String loopEnd = newLabel();
-
                 int counterIndex = nextLocalIndex++;
                 int limitIndex = nextLocalIndex++;
 
                 cond.expression.accept(this);
                 emit("istore " + limitIndex);
-
                 emit("ldc 0");
                 emit("istore " + counterIndex);
 
@@ -321,45 +365,39 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
                 emit("iinc " + counterIndex + " 1");
                 emit("goto " + loopStart);
-
                 emitLabel(loopEnd);
 
+                // Comportamento como "while" para tipos Bool
             } else if (condType.baseType.equals("Bool")) {
                 String loopStart = newLabel();
                 String loopEnd = newLabel();
-
                 emitLabel(loopStart);
-
                 cond.expression.accept(this);
-
                 emit("ifeq " + loopEnd);
-
                 cmd.body.accept(this);
-
                 emit("goto " + loopStart);
-
                 emitLabel(loopEnd);
             }
 
+            // Caso 2: iterate(id : expr) - Loop com uma variável de controle
         } else if (cmd.condition instanceof ItCondLabelled) {
             ItCondLabelled cond = (ItCondLabelled) cmd.condition;
             Type exprType = cond.expression.expType;
 
+            // Comportamento "for-i" para um range de inteiros
             if (exprType.baseType.equals("Int") && exprType.arrayDim == 0) {
                 String loopStart = newLabel();
                 String loopEnd = newLabel();
-
                 Integer shadowedVarIndex = locals.get(cond.label);
-
                 int loopVarIndex = nextLocalIndex++;
                 int limitIndex = nextLocalIndex++;
-
                 locals.put(cond.label, loopVarIndex);
 
                 cond.expression.accept(this);
                 emit("istore " + limitIndex);
                 emit("ldc 0");
                 emit("istore " + loopVarIndex);
+
                 emitLabel(loopStart);
                 emit("iload " + loopVarIndex);
                 emit("iload " + limitIndex);
@@ -374,10 +412,11 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                 } else {
                     locals.remove(cond.label);
                 }
+
+                // NOVO CÓDIGO AQUI: Comportamento "foreach" para arrays
             } else if (exprType.arrayDim > 0) {
                 String loopStart = newLabel();
                 String loopEnd = newLabel();
-
                 int arrayIndex = nextLocalIndex++;
                 int counterIndex = nextLocalIndex++;
                 int loopVarIndex = nextLocalIndex++;
@@ -386,7 +425,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                 cond.expression.accept(this);
                 emit("astore " + arrayIndex);
 
-                // Inicializa o contador j = 0
                 emit("ldc 0");
                 emit("istore " + counterIndex);
 
@@ -396,18 +434,36 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                 emit("arraylength");
                 emit("if_icmpge " + loopEnd);
 
-                // Carrega o elemento: elem = array[j]
                 emit("aload " + arrayIndex);
                 emit("iload " + counterIndex);
-                emit("iaload");
-                emit("istore " + loopVarIndex);
+
+                Type elementType = new Type(exprType.baseType, exprType.arrayDim - 1);
+                switch (elementType.baseType) {
+                    case "Int":
+                    case "Bool":
+                        emit("iaload");
+                        emit("istore " + loopVarIndex);
+                        break;
+                    case "Float":
+                        emit("faload");
+                        emit("fstore " + loopVarIndex);
+                        break;
+                    case "Char":
+                        emit("caload");
+                        emit("istore " + loopVarIndex);
+                        break;
+                    default:
+                        emit("aaload");
+                        emit("astore " + loopVarIndex);
+                        break;
+                }
 
                 cmd.body.accept(this);
-
                 emit("iinc " + counterIndex + " 1");
                 emit("goto " + loopStart);
-
                 emitLabel(loopEnd);
+
+                locals.remove(cond.label);
             }
         }
         return null;
@@ -415,13 +471,7 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitCmdRead(CmdRead cmd) {
-        emit("new java/util/Scanner");
-        emit("dup");
-        emit("getstatic java/lang/System/in Ljava/io/InputStream;");
-        emit("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V");
-
-        emit("invokevirtual java/util/Scanner/nextInt()I");
-
+        // LValueId: leitura para variável local
         if (cmd.lvalue instanceof LValueId) {
             String varName = ((LValueId) cmd.lvalue).id;
             if (!locals.containsKey(varName)) {
@@ -429,9 +479,56 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                         "Erro do gerador: variável '" + varName + "' do 'read' não foi previamente declarada.");
             }
             int localIndex = locals.get(varName);
-            emit("istore " + localIndex);
+
+            // decide qual método do Scanner usar a partir do tipo da variável
+            if (cmd.lvalue.expType != null && cmd.lvalue.expType.baseType.equals("Float")) {
+                // float
+                emit("new java/util/Scanner");
+                emit("dup");
+                emit("getstatic java/lang/System/in Ljava/io/InputStream;");
+                emit("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V");
+                emit("invokevirtual java/util/Scanner/nextFloat()F");
+                emit("fstore " + localIndex);
+            } else {
+                // por padrão: int / bool / char tratamos como int (nextInt)
+                emit("new java/util/Scanner");
+                emit("dup");
+                emit("getstatic java/lang/System/in Ljava/io/InputStream;");
+                emit("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V");
+                emit("invokevirtual java/util/Scanner/nextInt()I");
+                emit("istore " + localIndex);
+            }
+
+        } else if (cmd.lvalue instanceof LValueIndex) {
+            LValueIndex target = (LValueIndex) cmd.lvalue;
+
+            target.target.accept(this);
+            target.index.accept(this);
+
+            String elemBase = "Int";
+            if (target.target != null && target.target.expType != null) {
+                elemBase = target.target.expType.baseType;
+            }
+
+            if (elemBase.equals("Float")) {
+                emit("new java/util/Scanner");
+                emit("dup");
+                emit("getstatic java/lang/System/in Ljava/io/InputStream;");
+                emit("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V");
+                emit("invokevirtual java/util/Scanner/nextFloat()F");
+                emit("fastore");
+            } else {
+                emit("new java/util/Scanner");
+                emit("dup");
+                emit("getstatic java/lang/System/in Ljava/io/InputStream;");
+                emit("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V");
+                emit("invokevirtual java/util/Scanner/nextInt()I");
+                emit("iastore");
+            }
+
         } else {
-            // TODO: Implementar 'read' para campos e arrays se necessário
+            throw new RuntimeException("read: LValue do tipo '" + cmd.lvalue.getClass().getSimpleName()
+                    + "' ainda não suportado pelo gerador.");
         }
 
         return null;
@@ -461,23 +558,75 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitData(Data data) {
-        /* TODO (gerar campos estáticos ou classes internas se necessário) */ return null;
+        data.accept(this);
+        return null;
     }
 
     @Override
     public Void visitDataAbstract(DataAbstract data) {
-        /* TODO */ return null;
+        emitHeader("\n; --- Definição da classe para o tipo de dados abstrato: " + data.name + " ---");
+        emitHeader(".class public " + data.name);
+        emitHeader(".super java/lang/Object");
+        emitHeader("");
+
+        for (Decl decl : data.declarations) {
+            String fieldName = decl.id;
+            String fieldType = getJasminType(decl.type);
+            emitHeader(".field public " + fieldName + " " + fieldType);
+        }
+        emitHeader("");
+
+        emitHeader("; Construtor padrão");
+        emitHeader(".method public <init>()V");
+        emit("aload_0");
+        emit("invokenonvirtual java/lang/Object/<init>()V");
+        emit("return");
+        emitHeader(".end method");
+        emitHeader("");
+
+        String originalClassName = this.className;
+        this.className = data.name;
+
+        for (Fun fun : data.functions) {
+            fun.accept(this);
+        }
+
+        this.className = originalClassName;
+
+        emitHeader("; --- Fim da definição de " + data.name + " ---\n");
+
+        return null;
     }
 
     @Override
     public Void visitDataRegular(DataRegular data) {
-        /* TODO */ return null;
+        emitHeader("\n; --- Definição da classe para o tipo de dados: " + data.name + " ---");
+        emitHeader(".class public " + data.name);
+        emitHeader(".super java/lang/Object");
+        emitHeader("");
+
+        for (Decl decl : data.declarations) {
+            String fieldName = decl.id;
+            String fieldType = getJasminType(decl.type);
+            emitHeader(".field public " + fieldName + " " + fieldType);
+        }
+        emitHeader("");
+
+        emitHeader("; Construtor padrão");
+        emitHeader(".method public <init>()V");
+        emit("aload_0");
+        emit("invokenonvirtual java/lang/Object/<init>()V");
+        emit("return");
+        emitHeader(".end method");
+        emitHeader("; --- Fim da definição de " + data.name + " ---\n");
+
+        return null;
     }
 
     @Override
     public Void visitDecl(Decl decl) {
         return null;
-    } // Geralmente não gera código diretamente
+    }
 
     @Override
     public Void visitDef(Def def) {
@@ -488,6 +637,46 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
     @Override
     public Void visitExp(Exp exp) {
         exp.accept(this);
+        return null;
+    }
+
+    @Override
+    public Void visitExpField(ExpField exp) {
+        exp.target.accept(this);
+
+        Type targetType = exp.target.expType;
+        String className = targetType.baseType;
+        Data dataDef = delta.get(className);
+
+        if (dataDef == null) {
+            throw new RuntimeException("Definição do tipo de dados '" + className + "' não encontrada.");
+        }
+
+        Type fieldType = null;
+        if (dataDef instanceof DataRegular) {
+            for (Decl decl : ((DataRegular) dataDef).declarations) {
+                if (decl.id.equals(exp.field)) {
+                    fieldType = decl.type;
+                    break;
+                }
+            }
+        } else if (dataDef instanceof DataAbstract) {
+            for (Decl decl : ((DataAbstract) dataDef).declarations) {
+                if (decl.id.equals(exp.field)) {
+                    fieldType = decl.type;
+                    break;
+                }
+            }
+        }
+
+        if (fieldType == null) {
+            throw new RuntimeException("O tipo '" + className + "' não possui o campo '" + exp.field + "'.");
+        }
+
+        String fieldDescriptor = getJasminType(fieldType);
+
+        emit("getfield " + className + "/" + exp.field + " " + fieldDescriptor);
+
         return null;
     }
 
@@ -601,12 +790,41 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitExpBool(ExpBool exp) {
-        /* TODO */ return null;
+        if (exp.value) {
+            emit("ldc 1"); // Carrega a constante inteira 1 (true)
+        } else {
+            emit("ldc 0"); // Carrega a constante inteira 0 (false)
+        }
+        return null;
     }
 
     @Override
     public Void visitExpCall(ExpCall exp) {
-        /* TODO */ return null;
+        Fun funDef = theta.get(exp.id);
+        if (funDef == null) {
+            throw new RuntimeException("Erro do gerador: função '" + exp.id + "' não encontrada.");
+        }
+
+        for (Exp arg : exp.args) {
+            arg.accept(this);
+        }
+
+        StringBuilder signature = new StringBuilder();
+        signature.append(className).append("/").append(funDef.id).append("(");
+        for (Param p : funDef.params) {
+            signature.append(getJasminType(p.type));
+        }
+        signature.append(")");
+
+        if (funDef.retTypes.isEmpty()) {
+            throw new RuntimeException("Função '" + exp.id + "' sem valor de retorno usada em uma expressão.");
+        } else {
+            signature.append(getJasminType(funDef.retTypes.get(0)));
+        }
+
+        emit("invokestatic " + signature.toString());
+
+        return null;
     }
 
     @Override
@@ -644,13 +862,9 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
     }
 
     @Override
-    public Void visitExpField(ExpField exp) {
-        /* TODO */ return null;
-    }
-
-    @Override
     public Void visitExpFloat(ExpFloat exp) {
-        /* TODO */ return null;
+        emit("ldc " + exp.value);
+        return null;
     }
 
     @Override
@@ -718,7 +932,8 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitExpNull(ExpNull exp) {
-        /* TODO */ return null;
+        emit("aconst_null"); // Carrega uma referência nula na pilha
+        return null;
     }
 
     @Override
@@ -729,7 +944,30 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitExpUnaryOp(ExpUnaryOp exp) {
-        /* TODO */ return null;
+        exp.exp.accept(this);
+        Type expType = exp.exp.expType;
+
+        switch (exp.op) {
+            case "!":
+
+                String trueLabel = newLabel();
+                String endLabel = newLabel();
+                emit("ifeq " + trueLabel);
+                emit("ldc 0");
+                emit("goto " + endLabel);
+                emitLabel(trueLabel);
+                emit("ldc 1");
+                emitLabel(endLabel);
+                break;
+            case "-":
+                if (expType.baseType.equals("Int")) {
+                    emit("ineg");
+                } else if (expType.baseType.equals("Float")) {
+                    emit("fneg");
+                }
+                break;
+        }
+        return null;
     }
 
     @Override
@@ -746,7 +984,8 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitItCondLabelled(ItCondLabelled itCondLabelled) {
-        /* TODO */ return null;
+        itCondLabelled.expression.accept(this);
+        return null;
     }
 
     @Override
@@ -757,7 +996,35 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitLValueField(LValueField lValueField) {
-        /* TODO */ return null;
+        lValueField.target.accept(this);
+
+        Type targetType = lValueField.target.expType;
+        String className = targetType.baseType;
+        Data dataDef = delta.get(className);
+
+        if (dataDef == null) {
+            throw new RuntimeException("Definição do tipo de dados '" + className + "' não encontrada.");
+        }
+
+        Type fieldType = null;
+        if (dataDef instanceof DataRegular) {
+            for (Decl decl : ((DataRegular) dataDef).declarations) {
+                if (decl.id.equals(lValueField.field)) {
+                    fieldType = decl.type;
+                    break;
+                }
+            }
+        }
+
+        if (fieldType == null) {
+            throw new RuntimeException("Campo '" + lValueField.field + "' não encontrado no tipo '" + className + "'.");
+        }
+
+        String fieldDescriptor = getJasminType(fieldType);
+
+        emit("getfield " + className + "/" + lValueField.field + " " + fieldDescriptor);
+
+        return null;
     }
 
     @Override
@@ -774,15 +1041,9 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitLValueIndex(LValueIndex lValueIndex) {
+
         lValueIndex.target.accept(this);
         lValueIndex.index.accept(this);
-
-        Type elementType = lValueIndex.expType;
-        if (elementType.arrayDim > 0 || delta.containsKey(elementType.baseType)) {
-            emit("aaload");
-        } else {
-            emit("iaload");
-        }
         return null;
     }
 

@@ -37,9 +37,9 @@ compile: generate
 	$(JAVAC) -cp $(CP) $(SOURCE_FILES)
 
 # Gera o Lexer e o Parser com ANTLR
-generate: lang.g4
+generate: parser/lang.g4
 	@echo "--- Gerando Lexer/Parser com ANTLR... ---"
-	$(JAVA) -jar $(ANTLR_JAR) -visitor -o ./parser lang.g4
+	$(JAVA) -jar $(ANTLR_JAR) -visitor parser/lang.g4
 
 # Limpa todos os arquivos gerados e compilados
 clean:
