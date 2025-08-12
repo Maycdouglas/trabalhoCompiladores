@@ -10,6 +10,8 @@ import interpreter.Visitor;
 public abstract class Exp extends Cmd implements DotPrintable, ASTNode {
     private static int nextId = 0;
 
+    public Type expType;
+
     protected static String getNextId() {
         return "node" + (nextId++);
     }

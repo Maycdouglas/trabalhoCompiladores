@@ -10,6 +10,7 @@ target/
 *.tokens
 *.interp
 *.class
+*.j
 
 ### IntelliJ IDEA ###
 .idea/*
