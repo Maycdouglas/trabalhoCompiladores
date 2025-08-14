@@ -168,53 +168,85 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitCmdAssign(CmdAssign cmd) {
+        // CASO 1: Atribuição a uma variável local (ex: i = 0)
         if (cmd.target instanceof LValueId) {
+            LValueId target = (LValueId) cmd.target;
+
+            // Visita a expressão para colocar o valor a ser atribuído na pilha
             cmd.expression.accept(this);
-            String varName = ((LValueId) cmd.target).id;
-            int localIndex;
 
-            if (!locals.containsKey(varName)) {
-                localIndex = nextLocalIndex++;
-                locals.put(varName, localIndex);
-            } else {
-                localIndex = locals.get(varName);
-            }
+            // Obtém o índice da variável local (ou cria um novo)
+            String varName = target.id;
+            int localIndex = locals.computeIfAbsent(varName, k -> nextLocalIndex++);
 
+            // Determina a instrução 'store' correta com base no tipo da expressão
             Type varType = cmd.expression.expType;
             if (varType.arrayDim > 0 || delta.containsKey(varType.baseType)) {
+                // Se for um array ou um objeto, usa 'astore' (store reference)
                 emit("astore " + localIndex);
             } else if (varType.baseType.equals("Float")) {
                 emit("fstore " + localIndex);
-            } else if (varType.baseType.equals("Int") || varType.baseType.equals("Bool")
-                    || varType.baseType.equals("Char")) {
-                emit("istore " + localIndex);
             } else {
-                // Fallback seguro para referências
-                emit("astore " + localIndex);
+                // Para Int, Bool e Char, usa 'istore'
+                emit("istore " + localIndex);
             }
-        } else if (cmd.target instanceof LValueIndex) {
-            LValueIndex target = (LValueIndex) cmd.target;
+        }
+        // CASO 2: Atribuição a um elemento de array (ex: board[i][j] = 'A')
+        else if (cmd.target instanceof LValueIndex) {
+            LValueIndex lv = (LValueIndex) cmd.target;
 
-            target.target.accept(this);
-            target.index.accept(this);
+            // 1. Empilha a referência do array e o(s) índice(s)
+            // O target.accept() irá recursivamente gerar 'aaload' para obter o sub-array
+            // correto.
+            // ex: para board[i][j], 'lv.target.accept(this)' gera o código para obter
+            // 'board[i]'
+            lv.target.accept(this); // Empilha a referência do array (ou sub-array)
+            lv.index.accept(this); // Empilha o índice final
+
+            // 2. Empilha o valor a ser atribuído
             cmd.expression.accept(this);
 
-            Type elementType = cmd.expression.expType;
-            switch (elementType.baseType) {
-                case "Int":
-                case "Bool":
-                    emit("iastore");
-                    break;
-                case "Float":
-                    emit("fastore");
-                    break;
-                case "Char":
-                    emit("castore");
-                    break;
-                default:
-                    emit("aastore");
-                    break;
+            // 3. Emite a instrução de armazenamento (*astore) correta
+            Type valueType = cmd.expression.expType;
+            if (valueType.arrayDim > 0 || delta.containsKey(valueType.baseType)) {
+                emit("aastore"); // Armazena uma referência (objeto ou outro array)
+            } else {
+                switch (valueType.baseType) {
+                    case "Int":
+                    case "Bool":
+                        emit("iastore"); // integer array store
+                        break;
+                    case "Float":
+                        emit("fastore"); // float array store
+                        break;
+                    case "Char":
+                        emit("castore"); // character array store
+                        break;
+                    default:
+                        throw new RuntimeException(
+                                "Tipo de array não suportado para atribuição: " + valueType.baseType);
+                }
             }
+        }
+        // CASO 3: Atribuição a um campo de objeto (ex: l.head = no)
+        else if (cmd.target instanceof LValueField) {
+            LValueField targetField = (LValueField) cmd.target;
+
+            // 1. Carrega a referência do objeto na pilha
+            targetField.target.accept(this);
+
+            // 2. Carrega o valor a ser atribuído na pilha
+            cmd.expression.accept(this);
+
+            // 3. Obtém os metadados para a instrução 'putfield'
+            Type targetType = targetField.target.expType; // Tipo do objeto (ex: LList)
+            String className = targetType.baseType;
+            String fieldName = targetField.field;
+            Type fieldType = cmd.expression.expType; // Tipo do valor sendo atribuído
+            String fieldDescriptor = getJasminType(fieldType);
+
+            // 4. Emite a instrução para armazenar o valor no campo
+            emit("putfield " + className + "/" + fieldName + " " + fieldDescriptor);
         }
         return null;
     }
@@ -867,26 +899,35 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    // Em JasminGeneratorVisitor.java
+
     @Override
     public Void visitExpIndex(ExpIndex exp) {
+        // 1. Carrega a referência do array/sub-array na pilha
         exp.target.accept(this);
+        // 2. Carrega o valor do índice na pilha
         exp.index.accept(this);
 
-        Type elementType = exp.expType;
-        switch (elementType.baseType) {
-            case "Int":
-            case "Bool":
-                emit("iaload");
-                break;
-            case "Float":
-                emit("faload");
-                break;
-            case "Char":
-                emit("caload");
-                break;
-            default:
-                emit("aaload");
-                break;
+        // 3. Determina a instrução de load correta
+        Type resultType = exp.expType; // Tipo do resultado da operação e.g., Char[] ou Char
+
+        if (resultType.arrayDim > 0 || delta.containsKey(resultType.baseType)) {
+            emit("aaload");
+        } else {
+            switch (resultType.baseType) {
+                case "Int":
+                case "Bool":
+                    emit("iaload");
+                    break;
+                case "Float":
+                    emit("faload");
+                    break;
+                case "Char":
+                    emit("caload");
+                    break;
+                default:
+                    throw new RuntimeException("Tipo primitivo não tratado no acesso ao array: " + resultType.baseType);
+            }
         }
         return null;
     }
@@ -921,11 +962,14 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         }
         // Caso 2: Criação de um 'data' (ex: new Ponto)
         else {
-            // TODO: Implementar a instanciação de objetos 'data'.
-            // Exemplo:
-            // emit("new " + exp.type.baseType);
-            // emit("dup");
-            // emit("invokespecial " + exp.type.baseType + "/<init>()V");
+            String className = exp.type.baseType;
+
+            // 1. Aloca memória para o objeto
+            emit("new " + className);
+            // 2. Duplica a referência na pilha (uma para o construtor, uma para o retorno)
+            emit("dup");
+            // 3. Chama o construtor padrão <init>()V
+            emit("invokespecial " + className + "/<init>()V");
         }
         return null;
     }
@@ -1044,6 +1088,7 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
         lValueIndex.target.accept(this);
         lValueIndex.index.accept(this);
+        emit("aaload");
         return null;
     }
 
