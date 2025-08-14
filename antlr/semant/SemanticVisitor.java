@@ -19,11 +19,26 @@ public class SemanticVisitor implements Visitor<Type> {
     private final Stack<Map<String, Type>> gamma = new Stack<>();
     private final Map<String, Fun> theta = new HashMap<>();
     private final Map<String, Data> delta = new HashMap<>();
+    private List<String> errors = new ArrayList<>();
 
     private Fun currentFunction = null;
 
     public SemanticVisitor() {
         gamma.push(new HashMap<>());
+    }
+
+    public boolean hasErrors() {
+        return !errors.isEmpty();
+    }
+
+    public void printErrors() {
+        for (String error : errors) {
+            System.err.println(error);
+        }
+    }
+
+    private void addError(int line, String message) {
+        errors.add("Erro Semântico (linha " + line + "): " + message);
     }
 
     private Map<String, Type> currentScope() {
@@ -45,42 +60,63 @@ public class SemanticVisitor implements Visitor<Type> {
                 return scope.get(varName);
             }
         }
-        throw new RuntimeException("Variável '" + varName + "' não declarada.");
+        return null; // não lança erro
     }
 
     @Override
-    public Type visitCmdAssign(CmdAssign cmdAssign) {
-        Type rightType = cmdAssign.expression.accept(this);
-        Type leftType = cmdAssign.target.accept(this);
+    public Type visitCmdAssign(CmdAssign cmd) {
+        // 1. Avalia a expressão do lado direito para saber o tipo
+        Type expressionType = cmd.expression.accept(this);
 
-        if (leftType == null) {
-            if (cmdAssign.target instanceof LValueId) {
-                LValueId lvalId = (LValueId) cmdAssign.target;
-                currentScope().put(lvalId.id, rightType);
+        if (expressionType.isError()) {
+            return Type.ERROR; // Propaga erro
+        }
+
+        // 2. Se for uma variável simples (ex.: x = 3)
+        if (cmd.target instanceof LValueId) {
+            LValueId lvalueId = (LValueId) cmd.target;
+            String varName = lvalueId.id;
+
+            // Usa findVar que retorna null se não existir
+            Type lValueType = findVar(varName);
+
+            if (lValueType == null) {
+                // Declaração implícita
+                currentScope().put(varName, expressionType);
+                lvalueId.expType = expressionType;
+                return expressionType;
             } else {
-                throw new RuntimeException("Atribuição inválida: o alvo da atribuição não foi declarado.");
-            }
-        } else {
-            boolean compatible = false;
-
-            if (leftType.baseType.equals(rightType.baseType) && leftType.arrayDim == rightType.arrayDim) {
-                compatible = true;
-            }
-
-            if (rightType.baseType.equals("Null")) {
-                if (delta.containsKey(leftType.baseType) || leftType.arrayDim > 0) {
-                    compatible = true;
+                // Variável já existe — verifica compatibilidade
+                lvalueId.expType = lValueType;
+                boolean compatible = lValueType.isEquivalent(expressionType) ||
+                        (lValueType.isReference() && expressionType.isNull());
+                if (!compatible) {
+                    addError(cmd.getLine(),
+                            "Tipos incompatíveis na atribuição. A variável '" + varName +
+                                    "' é do tipo '" + lValueType + "' mas recebeu '" + expressionType + "'.");
+                    return Type.ERROR;
                 }
-            }
-
-            if (!compatible) {
-                String varName = (cmdAssign.target instanceof LValueId) ? ((LValueId) cmdAssign.target).id
-                        : "expressão";
-                throw new RuntimeException("Tipos incompatíveis na atribuição. A variável '" + varName +
-                        "' é do tipo " + leftType.baseType + " mas recebeu " + rightType.baseType + ".");
+                return lValueType;
             }
         }
-        return null;
+        // 3. Se for algo mais complexo (a[i], p.x)
+        else {
+            Type lValueType = cmd.target.accept(this);
+
+            if (lValueType.isError()) {
+                return Type.ERROR;
+            }
+
+            boolean compatible = lValueType.isEquivalent(expressionType) ||
+                    (lValueType.isReference() && expressionType.isNull());
+            if (!compatible) {
+                addError(cmd.getLine(),
+                        "Tipos incompatíveis na atribuição. O alvo é do tipo '" +
+                                lValueType + "' mas recebeu '" + expressionType + "'.");
+                return Type.ERROR;
+            }
+            return lValueType;
+        }
     }
 
     @Override
@@ -306,70 +342,73 @@ public class SemanticVisitor implements Visitor<Type> {
         Type rightType = expBinOp.right.accept(this);
         Type resultType = null;
 
-        if (leftType.baseType.equals("Int") && rightType.baseType.equals("Int")) {
-            switch (expBinOp.op) {
-                case "+":
-                case "-":
-                case "*":
-                case "/":
-                case "%":
-                    resultType = new Type("Int", 0);
-                    break;
-                case "==":
-                case "!=":
-                case "<":
+        // Se qualquer um dos operandos tiver um erro, propaga o erro.
+        if (leftType.isError() || rightType.isError()) {
+            expBinOp.expType = Type.ERROR;
+            return Type.ERROR;
+        }
+
+        switch (expBinOp.op) {
+            // Operações Aritméticas: +, -, *, /, %
+            case "+":
+            case "-":
+            case "*":
+            case "/":
+            case "%":
+                // Regra: Ambos devem ser numéricos (Int ou Float).
+                // Se um for Float, o resultado é Float (promoção de tipo).
+                if (leftType.isNumeric() && rightType.isNumeric()) {
+                    if (leftType.isFloat() || rightType.isFloat()) {
+                        resultType = new Type("Float", 0);
+                    } else {
+                        resultType = new Type("Int", 0);
+                    }
+                }
+                break;
+
+            // Operações Relacionais: <
+            case "<":
+                // Regra: Ambos devem ser numéricos e do mesmo tipo.
+                if (leftType.isNumeric() && rightType.isNumeric() && leftType.isEquivalent(rightType)) {
                     resultType = new Type("Bool", 0);
-                    break;
-            }
-        }
+                }
+                break;
 
-        else if ((leftType.baseType.equals("Float") || leftType.baseType.equals("Int")) &&
-                (rightType.baseType.equals("Float") || rightType.baseType.equals("Int"))) {
-            switch (expBinOp.op) {
-                case "+":
-                case "-":
-                case "*":
-                case "/":
-                    resultType = new Type("Float", 0);
-                    break;
-                case "==":
-                case "!=":
-                case "<":
+            // Operações de Igualdade: ==, !=
+            case "==":
+            case "!=":
+                // Regra 1: Tipos primitivos devem ser equivalentes.
+                if (leftType.isPrimitive() && rightType.isPrimitive() && leftType.isEquivalent(rightType)) {
                     resultType = new Type("Bool", 0);
-                    break;
-            }
-        }
-
-        else if (leftType.baseType.equals("Bool") && rightType.baseType.equals("Bool")) {
-            switch (expBinOp.op) {
-                case "&&":
+                }
+                // Regra 2: Qualquer tipo de referência (array ou data) pode ser comparado com
+                // 'null'.
+                else if (leftType.isReference() && rightType.isNull()) {
                     resultType = new Type("Bool", 0);
-                    break;
-            }
-        }
-
-        else if (leftType.baseType.equals("Char") && rightType.baseType.equals("Char")) {
-            switch (expBinOp.op) {
-                case "==":
-                case "!=":
+                } else if (rightType.isReference() && leftType.isNull()) {
                     resultType = new Type("Bool", 0);
-                    break;
-            }
+                }
+                // Regra 3: Dois tipos de referência podem ser comparados se forem equivalentes.
+                else if (leftType.isReference() && rightType.isReference() && leftType.isEquivalent(rightType)) {
+                    resultType = new Type("Bool", 0);
+                }
+                break;
+
+            // Operações Lógicas: &&
+            case "&&":
+                // Regra: Ambos devem ser Bool.
+                if (leftType.isBool() && rightType.isBool()) {
+                    resultType = new Type("Bool", 0);
+                }
+                break;
         }
 
-        else if (expBinOp.op.equals("==") || expBinOp.op.equals("!=")) {
-            boolean leftIsNullable = delta.containsKey(leftType.baseType) || leftType.arrayDim > 0;
-            boolean rightIsNullable = delta.containsKey(rightType.baseType) || rightType.arrayDim > 0;
-
-            if ((leftIsNullable && rightType.baseType.equals("Null")) ||
-                    (rightIsNullable && leftType.baseType.equals("Null"))) {
-                resultType = new Type("Bool", 0);
-            }
-        }
-
+        // Se nenhuma regra correspondeu, a operação é inválida.
         if (resultType == null) {
-            throw new RuntimeException("Operação '" + expBinOp.op + "' inválida entre os tipos "
-                    + leftType.baseType + " e " + rightType.baseType);
+            addError(expBinOp.getLine(), "Operação '" + expBinOp.op + "' inválida entre os tipos "
+                    + leftType.toString() + " e " + rightType.toString());
+            expBinOp.expType = Type.ERROR;
+            return Type.ERROR;
         }
 
         expBinOp.expType = resultType;
@@ -410,15 +449,17 @@ public class SemanticVisitor implements Visitor<Type> {
 
     @Override
     public Type visitLValueId(LValueId lValueId) {
-        for (int i = gamma.size() - 1; i >= 0; i--) {
-            Map<String, Type> scope = gamma.get(i);
-            if (scope.containsKey(lValueId.id)) {
-                Type foundType = scope.get(lValueId.id);
-                lValueId.expType = foundType;
-                return foundType;
-            }
+        Type varType = findVar(lValueId.id);
+
+        // Se a variável não for encontrada, é um erro.
+        if (varType == null) {
+            addError(lValueId.getLine(), "Variável '" + lValueId.id + "' não declarada.");
+            lValueId.expType = Type.ERROR;
+            return Type.ERROR;
         }
-        return null;
+
+        lValueId.expType = varType; // Anota o nó.
+        return varType;
     }
 
     @Override

@@ -137,10 +137,11 @@ public class Main {
     public static void semant() {
         System.out.println("--- Executando Análise Semântica ---");
         semanticVisitor = new SemanticVisitor();
-        try {
-            ast.accept(semanticVisitor);
-        } catch (RuntimeException e) {
-            throw new RuntimeException("Erro Semântico: " + e.getMessage());
+        ast.accept(semanticVisitor);
+        if (semanticVisitor.hasErrors()) {
+            System.out.println("reject"); // Sinaliza que o código foi rejeitado
+            semanticVisitor.printErrors(); // Imprime todos os erros encontrados
+            System.exit(1); // Termina a execução
         }
     }
 

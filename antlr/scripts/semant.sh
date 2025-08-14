@@ -14,7 +14,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # Define os outros caminhos com base na localização do script.
 # ${SCRIPT_DIR} -> /.../trabalhoCompiladores/antlr/scripts
-DIRETORIO_TESTES="${SCRIPT_DIR}/../../Lang"                  # Alvo: A pasta 'Lang' inteira.
+DIRETORIO_TESTES="${SCRIPT_DIR}/../../Lang/types"                  # Alvo: A pasta 'Lang' inteira.
 ARQUIVO_LOG="${SCRIPT_DIR}/resultados_semanticos.log"      # Novo arquivo de log para os resultados semânticos.
 MAKE_DIR="${SCRIPT_DIR}/.."                                  # O Makefile está um nível acima (na pasta antlr).
 

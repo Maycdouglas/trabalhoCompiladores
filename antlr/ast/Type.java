@@ -29,6 +29,45 @@ public class Type implements DotPrintable, ASTNode {
         return this.line;
     }
 
+    public boolean isNumeric() {
+        return this.baseType.equals("Int") || this.baseType.equals("Float");
+    }
+
+    public boolean isFloat() {
+        return this.baseType.equals("Float");
+    }
+
+    public boolean isBool() {
+        return this.baseType.equals("Bool");
+    }
+
+    public boolean isNull() {
+        return this.baseType.equals("Null");
+    }
+
+    public boolean isPrimitive() {
+        return isNumeric() || isBool() || this.baseType.equals("Char");
+    }
+
+    public boolean isReference() {
+        return this.arrayDim > 0 || !isPrimitive() && !isNull() && !isError();
+    }
+
+    public boolean isEquivalent(Type other) {
+        if (this.isError() || other.isError()) {
+            return true; // Evita erros em cascata
+        }
+        return this.baseType.equals(other.baseType) && this.arrayDim == other.arrayDim;
+    }
+
+    @Override
+    public String toString() {
+        if (arrayDim > 0) {
+            return baseType + "[]".repeat(arrayDim);
+        }
+        return baseType;
+    }
+
     public boolean isError() {
         return this.baseType.equals("<<error>>");
     }
