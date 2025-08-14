@@ -8,6 +8,11 @@ package ast;
 import interpreter.Visitor;
 
 public class ExpNull extends Exp {
+
+    public ExpNull(int line) {
+        this.line = line;
+    }
+
     @Override
     public String toDot(String parentId) {
         String id = "ExpNull" + hashCode();

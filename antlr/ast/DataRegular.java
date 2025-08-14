@@ -11,8 +11,8 @@ import java.util.List;
 public class DataRegular extends Data {
     public final List<Decl> declarations;
 
-    public DataRegular(String name, List<Decl> declarations) {
-        super(name);
+    public DataRegular(String name, List<Decl> declarations, int line) {
+        super(name, line);
         this.declarations = declarations;
     }
 

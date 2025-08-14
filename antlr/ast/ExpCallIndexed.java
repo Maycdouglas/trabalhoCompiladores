@@ -10,10 +10,17 @@ import interpreter.Visitor;
 public class ExpCallIndexed extends Exp {
     public final ExpCall call;
     public final Exp index;
+    public final int line;
 
-    public ExpCallIndexed(ExpCall call, Exp index) {
+    public ExpCallIndexed(ExpCall call, Exp index, int line) {
         this.call = call;
         this.index = index;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

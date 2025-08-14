@@ -9,13 +9,19 @@ import interpreter.Visitor;
 
 public class ExpVar extends Exp {
     public final String name;
+    public final int line;
 
-    public ExpVar(String name) {
+    public ExpVar(String name, int line) {
         this.name = name;
+        this.line = line;
     }
 
     public String getName() {
         return this.name;
+    }
+
+    public int getLine() {
+        return this.line;
     }
 
     @Override

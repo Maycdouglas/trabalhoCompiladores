@@ -10,10 +10,17 @@ import interpreter.Visitor;
 public class ItCondLabelled extends ItCond {
     public final String label;
     public final Exp expression;
+    public final int line;
 
-    public ItCondLabelled(String label, Exp expression) {
+    public ItCondLabelled(String label, Exp expression, int line) {
         this.label = label;
         this.expression = expression;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

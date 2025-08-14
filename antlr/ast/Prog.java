@@ -6,16 +6,20 @@
 package ast;
 
 import interpreter.Visitor;
-
-// Programa: contém lista de definições (data e funções)
-// Representa o programa inteiro, com uma lista de definições
 import java.util.List;
 
-public class Prog implements DotPrintable, ASTNode{
+public class Prog implements DotPrintable, ASTNode {
     public final List<Def> definitions;
+    public final int line;
 
-    public Prog(List<Def> definitions) {
+    public Prog(List<Def> definitions, int line) {
         this.definitions = definitions;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override
@@ -36,5 +40,4 @@ public class Prog implements DotPrintable, ASTNode{
     public <T> T accept(Visitor<T> visitor) {
         return visitor.visitProg(this);
     }
-
 }

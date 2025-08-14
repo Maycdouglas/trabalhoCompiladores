@@ -8,9 +8,15 @@ import interpreter.Visitor;
 
 public class LValueId extends LValue {
     public final String id;
+    public final int line;
 
-    public LValueId(String id) {
+    public LValueId(String id, int line) {
         this.id = id;
+        this.line = line;
+    }
+
+    public int getLine() {
+        return this.line;
     }
 
     @Override

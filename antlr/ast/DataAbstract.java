@@ -12,8 +12,8 @@ public class DataAbstract extends Data {
     public final List<Decl> declarations;
     public final List<Fun> functions;
 
-    public DataAbstract(String name, List<Decl> declarations, List<Fun> functions) {
-        super(name);
+    public DataAbstract(String name, List<Decl> declarations, List<Fun> functions, int line) {
+        super(name, line);
         this.declarations = declarations;
         this.functions = functions;
     }

@@ -11,11 +11,18 @@ public class CmdIf extends Cmd implements DotPrintable {
     public final Exp condition;
     public final Cmd thenBranch;
     public final Cmd elseBranch; // pode ser null
+    public final int line;
 
-    public CmdIf(Exp condition, Cmd thenBranch, Cmd elseBranch) {
+    public CmdIf(Exp condition, Cmd thenBranch, Cmd elseBranch, int line) {
         this.condition = condition;
         this.thenBranch = thenBranch;
         this.elseBranch = elseBranch;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return line;
     }
 
     @Override

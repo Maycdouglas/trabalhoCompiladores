@@ -9,9 +9,16 @@ import interpreter.Visitor;
 
 public class ExpParen extends Exp {
     public final Exp exp;
+    public final int line;
 
-    public ExpParen(Exp exp) {
+    public ExpParen(Exp exp, int line) {
         this.exp = exp;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

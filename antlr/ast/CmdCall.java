@@ -12,11 +12,18 @@ public class CmdCall extends Cmd implements DotPrintable {
     public final String id;
     public final List<Exp> args;
     public final List<LValue> rets;
+    public final int line;
 
-    public CmdCall(String id, List<Exp> args, List<LValue> rets) {
+    public CmdCall(String id, List<Exp> args, List<LValue> rets, int line) {
         this.id = id;
         this.args = args;
         this.rets = rets;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

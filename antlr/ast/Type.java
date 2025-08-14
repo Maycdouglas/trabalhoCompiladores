@@ -8,13 +8,29 @@ package ast;
 import interpreter.Visitor;
 
 // Tipo base (simplificado)
-public class Type implements DotPrintable, ASTNode{
+public class Type implements DotPrintable, ASTNode {
     public final String baseType; // exemplo: Int, Bool, ou nome do tipo (TYID)
-    public final int arrayDim;    // para representar [] (quantos níveis)
+    public final int arrayDim; // para representar [] (quantos níveis)
+    public final int line;
+    public static final Type ERROR = new Type("<<error>>", 0, -1);
 
-    public Type(String baseType, int arrayDim) {
+    public Type(String baseType, int arrayDim, int line) {
         this.baseType = baseType;
         this.arrayDim = arrayDim;
+        this.line = line;
+    }
+
+    public Type(String baseType, int arrayDim) {
+        this(baseType, arrayDim, -1); // Chama o outro construtor com line = 0
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
+    }
+
+    public boolean isError() {
+        return this.baseType.equals("<<error>>");
     }
 
     @Override

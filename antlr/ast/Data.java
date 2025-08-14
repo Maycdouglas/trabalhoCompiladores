@@ -10,9 +10,16 @@ import interpreter.Visitor;
 // Data Abstract e Regular
 public abstract class Data implements Def, DotPrintable {
     public final String name;
+    public final int line;
 
-    public Data(String name) {
+    public Data(String name, int line) {
         this.name = name;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

@@ -10,6 +10,12 @@ import interpreter.Visitor;
 // Comando base (futuramente vai herdar para os comandos específicos)
 public abstract class Cmd implements ASTNode {
 
+    public int line;
+
+    public int getLine() {
+        return this.line;
+    }
+
     @Override
     public <T> T accept(Visitor<T> visitor) {
         return visitor.visitCmd(this);
