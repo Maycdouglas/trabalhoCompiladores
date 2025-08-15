@@ -29,6 +29,7 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
     private int nextLocalIndex = 0;
     private final Map<String, Data> delta;
     private final Map<String, Fun> theta;
+    private boolean isInsideData = false;
 
     public JasminGeneratorVisitor(String className, Map<String, Data> delta, Map<String, Fun> theta) {
         this.className = className;
@@ -96,6 +97,11 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         locals.clear();
         nextLocalIndex = 0;
 
+        if (isInsideData) {
+            locals.put("this", 0);
+            nextLocalIndex = 1;
+        }
+
         StringBuilder signature = new StringBuilder();
         signature.append(fun.id).append("(");
 
@@ -118,7 +124,15 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
             nextLocalIndex = 1;
         }
 
-        emitHeader(".method public static " + signature.toString());
+        if (isInsideData) {
+            emitHeader(".method public " + signature.toString());
+        } else {
+            if (fun.id.equals("main")) {
+                signature = new StringBuilder("main([Ljava/lang/String;)V");
+                nextLocalIndex = 1; // 'args' do main
+            }
+            emitHeader(".method public static " + signature.toString());
+        }
         emit(".limit stack 20");
         emit(".limit locals 20");
         emitHeader("");
@@ -146,12 +160,34 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
         Type typeToPrint = cmd.value.expType;
         String descriptor = "";
-        if (typeToPrint.baseType.equals("Int") || typeToPrint.baseType.equals("Bool")) {
+        if (typeToPrint.baseType.equals("Int")) {
             descriptor = "I";
         } else if (typeToPrint.baseType.equals("Float")) {
             descriptor = "F";
         } else if (typeToPrint.baseType.equals("Char")) {
             descriptor = "C";
+        } else if (typeToPrint.baseType.equals("Bool")) {
+            cmd.value.accept(this); // Empilha 0 ou 1
+            String falseLabel = newLabel();
+            String endLabel = newLabel();
+
+            emit("ifeq " + falseLabel); // Se o valor for 0 (false), salta para falseLabel
+
+            // Se for true (não saltou)
+            emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
+            emit("ldc \"true\""); // Carrega a string "true"
+            emit("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V");
+            emit("goto " + endLabel);
+
+            // Se for false
+            emitLabel(falseLabel);
+            emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
+            emit("ldc \"false\""); // Carrega a string "false"
+            emit("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V");
+
+            emitLabel(endLabel);
+            
+            return null;
         } else {
             descriptor = "Ljava/lang/Object;";
         }
@@ -270,23 +306,32 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         }
     }
 
+    // Em jasmin/JasminGeneratorVisitor.java
+
     @Override
     public Void visitExpVar(ExpVar expVar) {
-        if (!locals.containsKey(expVar.name)) {
+        if (locals.containsKey(expVar.name)) {
+            int localIndex = locals.get(expVar.name);
+            Type varType = expVar.expType;
+
+            if (varType.arrayDim > 0 || delta.containsKey(varType.baseType)) {
+                emit("aload " + localIndex);
+            } else if (varType.baseType.equals("Float")) {
+                emit("fload " + localIndex);
+            } else { // Int, Bool, Char
+                emit("iload " + localIndex);
+            }
+        } else if (isInsideData) {
+            emit("aload_0");
+
+            String fieldName = expVar.name;
+            Type fieldType = expVar.expType; // O tipo do campo já foi determinado pelo SemanticVisitor.
+            String fieldDescriptor = getJasminType(fieldType);
+
+            emit("getfield " + this.className + "/" + fieldName + " " + fieldDescriptor);
+        } else {
             throw new RuntimeException(
                     "Erro do gerador: variável '" + expVar.name + "' não encontrada no mapa de locais.");
-        }
-        int localIndex = locals.get(expVar.name);
-
-        if (expVar.expType.arrayDim > 0 || delta.containsKey(expVar.expType.baseType)) {
-            emit("aload " + localIndex);
-        } else if (expVar.expType.baseType.equals("Int") || expVar.expType.baseType.equals("Bool")
-                || expVar.expType.baseType.equals("Char")) {
-            emit("iload " + localIndex);
-        } else if (expVar.expType.baseType.equals("Float")) {
-            emit("fload " + localIndex);
-        } else {
-            emit("aload " + localIndex);
         }
         return null;
     }
@@ -619,9 +664,11 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         String originalClassName = this.className;
         this.className = data.name;
 
+        this.isInsideData = true; // Entra no contexto de 'data'
         for (Fun fun : data.functions) {
             fun.accept(this);
         }
+        this.isInsideData = false; // Sai do contexto de 'data'
 
         this.className = originalClassName;
 
