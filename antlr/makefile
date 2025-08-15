@@ -67,6 +67,10 @@ run-interp: compile
 	@echo "--- Interpretando $(ARGS)... ---"
 	$(JAVA) -cp $(CP) $(MAIN_CLASS) -i $(ARGS)
 
+print-dot: compile
+	@echo "--- Gerando arquivo Dot $(ARGS)... ---"
+	$(JAVA) -cp $(CP) $(MAIN_CLASS) -dot $(ARGS)
+
 # Alvo para Geração de Código Jasmin (-gen) com Montagem e Execução
 run-gen: compile
 	@echo "\n--- [1/3] Gerando código Jasmin para $(ARGS)... ---"

@@ -18,8 +18,10 @@ import org.antlr.v4.runtime.tree.*;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Stack;
 
 /**
  * @brief Classe principal que orquestra as fases do compilador.
@@ -76,6 +78,9 @@ public class Main {
                 case "-gen":
                     semant();
                     codeGen(filePath);
+                    break;
+                case "-dot":
+                    printParseTreeDot(tree, parser, "" + getBaseName(filePath) + ".dot");
                     break;
                 default:
                     System.err.println("Diretiva desconhecida: " + directive);
@@ -175,6 +180,18 @@ public class Main {
         writer.write(jasminCode);
         writer.close();
         System.out.println("Código Jasmin gerado com sucesso em: " + outFileName);
+    }
+
+    public static void printParseTreeDot(ParseTree tree, langParser parser, String outputPath) throws IOException {
+        try (PrintWriter out = new PrintWriter(outputPath)) {
+            out.println("digraph AST {");
+            out.print(ast.toDot(null));
+            out.println("}");
+            System.out.println("Arquivo " + outputPath + " gerado com sucesso.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     /**
