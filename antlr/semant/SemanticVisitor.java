@@ -133,11 +133,12 @@ public class SemanticVisitor implements Visitor<Type> {
     public Type visitCmdCall(CmdCall cmd) {
         Fun funDef = theta.get(cmd.id);
         if (funDef == null) {
-            throw new RuntimeException("Função '" + cmd.id + "' não definida.");
+            addError(cmd.getLine(), "Função '" + cmd.id + "' não declarada.");
         }
 
         if (funDef.params.size() != cmd.args.size()) {
-            throw new RuntimeException("Número incorreto de argumentos para a função '" + cmd.id + "'. Esperava " +
+            throw new RuntimeException("Linha " + cmd.getLine() + ": Número incorreto de argumentos para a função '"
+                    + cmd.id + "'. Esperava " +
                     funDef.params.size() + ", mas recebeu " + cmd.args.size() + ".");
         }
 
@@ -145,16 +146,17 @@ public class SemanticVisitor implements Visitor<Type> {
             Type argType = cmd.args.get(i).accept(this);
             Type paramType = funDef.params.get(i).type;
             if (!argType.baseType.equals(paramType.baseType) || argType.arrayDim != paramType.arrayDim) {
-                throw new RuntimeException(
+                throw new RuntimeException("Linha " + cmd.getLine() + ": " +
                         "Tipo incorreto para o argumento " + (i + 1) + " na chamada da função '" + cmd.id + "'.");
             }
         }
 
         if (cmd.rets != null && !cmd.rets.isEmpty()) {
             if (cmd.rets.size() != funDef.retTypes.size()) {
-                throw new RuntimeException("Número de variáveis de retorno (" + cmd.rets.size() +
-                        ") é diferente do número de valores retornados (" + funDef.retTypes.size() +
-                        ") pela função '" + cmd.id + "'.");
+                throw new RuntimeException(
+                        "Linha " + cmd.getLine() + ": Número de variáveis de retorno (" + cmd.rets.size() +
+                                ") é diferente do número de valores retornados (" + funDef.retTypes.size() +
+                                ") pela função '" + cmd.id + "'.");
             }
 
             for (int i = 0; i < cmd.rets.size(); i++) {
@@ -169,13 +171,13 @@ public class SemanticVisitor implements Visitor<Type> {
                     } else {
                         if (!lvalType.baseType.equals(returnType.baseType)
                                 || lvalType.arrayDim != returnType.arrayDim) {
-                            throw new RuntimeException(
+                            throw new RuntimeException("Linha " + cmd.getLine() + ": " +
                                     "Incompatibilidade de tipo ao atribuir o retorno da função '" + cmd.id +
-                                            "' à variável '" + varName + "'.");
+                                    "' à variável '" + varName + "'.");
                         }
                     }
                 } else {
-                    throw new UnsupportedOperationException(
+                    throw new UnsupportedOperationException("Linha " + cmd.getLine() + ": " +
                             "Atribuição de retorno múltiplo só suporta variáveis simples no momento.");
                 }
             }
@@ -188,7 +190,7 @@ public class SemanticVisitor implements Visitor<Type> {
     public Type visitCmdIf(CmdIf cmd) {
         Type condType = cmd.condition.accept(this);
         if (!condType.baseType.equals("Bool")) {
-            throw new RuntimeException("A condição de um 'if' deve ser do tipo Bool.");
+            throw new RuntimeException("Linha " + cmd.getLine() + ": A condição de um 'if' deve ser do tipo Bool.");
         }
 
         cmd.thenBranch.accept(this);
@@ -211,7 +213,7 @@ public class SemanticVisitor implements Visitor<Type> {
             } else if (condType.baseType.equals("Int")) {
                 loopVarType = new Type("Int", 0);
             } else {
-                throw new RuntimeException(
+                throw new RuntimeException("Linha " + cmd.getLine() + ": " +
                         "A expressão em um laço 'iterate' rotulado deve ser um inteiro ou um array.");
             }
 
@@ -226,7 +228,8 @@ public class SemanticVisitor implements Visitor<Type> {
             } else if (condType.baseType.equals("Bool") && condType.arrayDim == 0) {
                 cmd.body.accept(this);
             } else {
-                throw new RuntimeException("A condição de um laço 'iterate' sem rótulo deve ser do tipo Int ou Bool.");
+                throw new RuntimeException("Linha " + cmd.getLine()
+                        + ": A condição de um laço 'iterate' sem rótulo deve ser do tipo Int ou Bool.");
             }
         }
         return null;
@@ -288,7 +291,7 @@ public class SemanticVisitor implements Visitor<Type> {
     @Override
     public Type visitFun(Fun fun) {
         if (theta.containsKey(fun.id)) {
-            throw new RuntimeException("Função '" + fun.id + "' já definida.");
+            throw new RuntimeException("Linha " + fun.getLine() + ": Função '" + fun.id + "' já definida.");
         }
         theta.put(fun.id, fun);
         return null;
@@ -302,13 +305,14 @@ public class SemanticVisitor implements Visitor<Type> {
     @Override
     public Type visitDataRegular(DataRegular data) {
         if (delta.containsKey(data.name)) {
-            throw new RuntimeException("Tipo '" + data.name + "' já definido.");
+            throw new RuntimeException("Linha " + data.getLine() + ": Tipo '" + data.name + "' já definido.");
         }
 
         Map<String, Type> fields = new HashMap<>();
         for (Decl decl : data.declarations) {
             if (fields.containsKey(decl.id)) {
-                throw new RuntimeException("Campo '" + decl.id + "' já foi declarado no tipo '" + data.name + "'.");
+                throw new RuntimeException("Linha " + decl.getLine() + ": Campo '" + decl.id
+                        + "' já foi declarado no tipo '" + data.name + "'.");
             }
             fields.put(decl.id, decl.type);
         }
@@ -320,13 +324,14 @@ public class SemanticVisitor implements Visitor<Type> {
     @Override
     public Type visitDataAbstract(DataAbstract data) {
         if (delta.containsKey(data.name)) {
-            throw new RuntimeException("Tipo '" + data.name + "' já definido.");
+            throw new RuntimeException("Linha " + data.getLine() + ": Tipo '" + data.name + "' já definido.");
         }
 
         Map<String, Type> fields = new HashMap<>();
         for (Decl decl : data.declarations) {
             if (fields.containsKey(decl.id)) {
-                throw new RuntimeException("Campo '" + decl.id + "' já foi declarado no tipo '" + data.name + "'.");
+                throw new RuntimeException("Linha " + decl.getLine() + ": Campo '" + decl.id
+                        + "' já foi declarado no tipo '" + data.name + "'.");
             }
             fields.put(decl.id, decl.type);
         }
@@ -422,18 +427,21 @@ public class SemanticVisitor implements Visitor<Type> {
         switch (expUnaryOp.op) {
             case "!":
                 if (!expType.baseType.equals("Bool")) {
-                    throw new RuntimeException("Operador '!' só pode ser aplicado a booleanos.");
+                    throw new RuntimeException(
+                            "Linha " + expUnaryOp.getLine() + ": Operador '!' só pode ser aplicado a booleanos.");
                 }
                 resultType = new Type("Bool", 0);
                 break;
             case "-":
                 if (!expType.baseType.equals("Int") && !expType.baseType.equals("Float")) {
-                    throw new RuntimeException("Operador '-' só pode ser aplicado a números.");
+                    throw new RuntimeException(
+                            "Linha " + expUnaryOp.getLine() + ": Operador '-' só pode ser aplicado a números.");
                 }
                 resultType = expType;
                 break;
             default:
-                throw new RuntimeException("Operador unário desconhecido: " + expUnaryOp.op);
+                throw new RuntimeException(
+                        "Linha " + expUnaryOp.getLine() + ": Operador unário desconhecido: " + expUnaryOp.op);
         }
 
         expUnaryOp.expType = resultType;
@@ -442,8 +450,16 @@ public class SemanticVisitor implements Visitor<Type> {
 
     @Override
     public Type visitExpVar(ExpVar expVar) {
-        expVar.expType = findVar(expVar.name);
-        return expVar.expType;
+        Type varType = findVar(expVar.name);
+
+        if (varType == null) {
+            addError(expVar.getLine(), "Variável '" + expVar.name + "' não declarada.");
+            expVar.expType = Type.ERROR;
+            return Type.ERROR;
+        }
+
+        expVar.expType = varType;
+        return varType;
     }
 
     @Override
@@ -544,15 +560,17 @@ public class SemanticVisitor implements Visitor<Type> {
     public Type visitExpCall(ExpCall exp) {
         Fun funDef = theta.get(exp.id);
         if (funDef == null) {
-            throw new RuntimeException("Função '" + exp.id + "' não definida.");
+            throw new RuntimeException("Linha " + exp.getLine() + ": Função '" + exp.id + "' não definida.");
         }
 
         if (funDef.params.size() != exp.args.size()) {
-            throw new RuntimeException("Número incorreto de argumentos para a função '" + exp.id + "'.");
+            throw new RuntimeException(
+                    "Linha " + exp.getLine() + ": Número incorreto de argumentos para a função '" + exp.id + "'.");
         }
 
         if (funDef.retTypes.size() > 1) {
-            throw new RuntimeException("Chamada de função com múltiplos retornos '" + exp.id + "' deve ser indexada.");
+            throw new RuntimeException("Linha " + exp.getLine() + ": Chamada de função com múltiplos retornos '"
+                    + exp.id + "' deve ser indexada.");
         }
         if (funDef.retTypes.isEmpty()) {
             addError(exp.line,
@@ -573,24 +591,26 @@ public class SemanticVisitor implements Visitor<Type> {
     public Type visitExpCallIndexed(ExpCallIndexed exp) {
         Fun funDef = theta.get(exp.call.id);
         if (funDef == null) {
-            throw new RuntimeException("Função '" + exp.call.id + "' não definida.");
+            throw new RuntimeException("Linha " + exp.getLine() + ": Função '" + exp.call.id + "' não definida.");
         }
 
         if (funDef.params.size() != exp.call.args.size()) {
-            throw new RuntimeException("Número incorreto de argumentos para a função '" + exp.call.id + "'.");
+            throw new RuntimeException(
+                    "Linha " + exp.getLine() + ": Número incorreto de argumentos para a função '" + exp.call.id + "'.");
         }
         for (int i = 0; i < funDef.params.size(); i++) {
             Type argType = exp.call.args.get(i).accept(this);
             Type paramType = funDef.params.get(i).type;
             if (!argType.baseType.equals(paramType.baseType) || argType.arrayDim != paramType.arrayDim) {
-                throw new RuntimeException(
+                throw new RuntimeException("Linha " + exp.getLine() + ": " +
                         "Tipo incorreto para o argumento " + (i + 1) + " na chamada da função '" + exp.call.id + "'.");
             }
         }
 
         Type indexType = exp.index.accept(this);
         if (!indexType.baseType.equals("Int") || indexType.arrayDim > 0) {
-            throw new RuntimeException("O índice de um retorno de função deve ser do tipo Int.");
+            throw new RuntimeException(
+                    "Linha " + exp.getLine() + ": O índice de um retorno de função deve ser do tipo Int.");
         }
 
         Type resultType = null;
@@ -598,7 +618,7 @@ public class SemanticVisitor implements Visitor<Type> {
         if (exp.index instanceof ExpInt) {
             int idx = ((ExpInt) exp.index).value;
             if (idx < 0 || idx >= funDef.retTypes.size()) {
-                throw new RuntimeException(
+                throw new RuntimeException("Linha " + exp.getLine() + ": " +
                         "Índice de retorno " + idx + " fora dos limites para a função '" + funDef.id + "'.");
             }
             resultType = funDef.retTypes.get(idx);
@@ -606,9 +626,9 @@ public class SemanticVisitor implements Visitor<Type> {
             if (funDef.retTypes.size() == 1) {
                 resultType = funDef.retTypes.get(0);
             } else {
-                throw new RuntimeException(
+                throw new RuntimeException("Linha " + exp.getLine() + ": " +
                         "Não é possível determinar estaticamente o tipo de retorno para a chamada indexada da função '"
-                                + funDef.id + "' com múltiplos retornos e índice não literal.");
+                        + funDef.id + "' com múltiplos retornos e índice não literal.");
             }
         }
 
@@ -621,7 +641,7 @@ public class SemanticVisitor implements Visitor<Type> {
         Type targetType = exp.target.accept(this);
 
         if (!delta.containsKey(targetType.baseType)) {
-            throw new RuntimeException(
+            throw new RuntimeException("Linha " + exp.getLine() + ": " +
                     "Tentativa de acessar campo '" + exp.field + "' em um tipo não-data: " + targetType.baseType);
         }
 
@@ -645,7 +665,8 @@ public class SemanticVisitor implements Visitor<Type> {
         }
 
         if (fieldType == null) {
-            throw new RuntimeException("O tipo '" + targetType.baseType + "' não possui o campo '" + exp.field + "'.");
+            throw new RuntimeException("Linha " + exp.getLine() + ": O tipo '" + targetType.baseType
+                    + "' não possui o campo '" + exp.field + "'.");
         }
 
         exp.expType = fieldType;
@@ -658,11 +679,12 @@ public class SemanticVisitor implements Visitor<Type> {
         Type indexType = exp.index.accept(this);
 
         if (targetType.arrayDim == 0) {
-            throw new RuntimeException("Tentativa de indexar uma variável que não é um array.");
+            throw new RuntimeException(
+                    "Linha " + exp.getLine() + ": Tentativa de indexar uma variável que não é um array.");
         }
 
         if (!indexType.baseType.equals("Int") || indexType.arrayDim > 0) {
-            throw new RuntimeException("O índice de um array deve ser do tipo Int.");
+            throw new RuntimeException("Linha " + exp.getLine() + ": O índice de um array deve ser do tipo Int.");
         }
 
         Type resultType = new Type(targetType.baseType, targetType.arrayDim - 1);
@@ -677,12 +699,14 @@ public class SemanticVisitor implements Visitor<Type> {
         if (exp.size != null) {
             Type sizeType = exp.size.accept(this);
             if (!sizeType.baseType.equals("Int") || sizeType.arrayDim > 0) {
-                throw new RuntimeException("O tamanho de um novo array deve ser um inteiro.");
+                throw new RuntimeException(
+                        "Linha " + exp.getLine() + ": O tamanho de um novo array deve ser um inteiro.");
             }
             resultType = new Type(exp.type.baseType, exp.type.arrayDim + 1);
         } else {
             if (!delta.containsKey(exp.type.baseType)) {
-                throw new RuntimeException("Tipo '" + exp.type.baseType + "' não definido.");
+                throw new RuntimeException(
+                        "Linha " + exp.getLine() + ": Tipo '" + exp.type.baseType + "' não definido.");
             }
             resultType = exp.type;
         }
@@ -711,7 +735,8 @@ public class SemanticVisitor implements Visitor<Type> {
         Type targetType = lValueField.target.accept(this);
 
         if (!delta.containsKey(targetType.baseType)) {
-            throw new RuntimeException("Tentativa de acessar campo '" + lValueField.field + "' em um tipo não-data: "
+            throw new RuntimeException("Linha " + lValueField.getLine() + ": Tentativa de acessar campo '"
+                    + lValueField.field + "' em um tipo não-data: "
                     + targetType.baseType);
         }
 
@@ -728,7 +753,7 @@ public class SemanticVisitor implements Visitor<Type> {
         }
 
         if (fieldType == null) {
-            throw new RuntimeException(
+            throw new RuntimeException("Linha " + lValueField.getLine() + ": " +
                     "O tipo '" + targetType.baseType + "' não possui o campo '" + lValueField.field + "'.");
         }
 
@@ -742,11 +767,13 @@ public class SemanticVisitor implements Visitor<Type> {
         Type indexType = lValueIndex.index.accept(this);
 
         if (targetType.arrayDim == 0) {
-            throw new RuntimeException("Tentativa de indexar uma variável que não é um array.");
+            throw new RuntimeException(
+                    "Linha " + lValueIndex.getLine() + ": Tentativa de indexar uma variável que não é um array.");
         }
 
         if (!indexType.baseType.equals("Int") || indexType.arrayDim > 0) {
-            throw new RuntimeException("O índice de um array deve ser do tipo Int.");
+            throw new RuntimeException(
+                    "Linha " + lValueIndex.getLine() + ": O índice de um array deve ser do tipo Int.");
         }
 
         Type resultType = new Type(targetType.baseType, targetType.arrayDim - 1);
