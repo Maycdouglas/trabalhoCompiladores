@@ -159,33 +159,77 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     @Override
     public String visitProg(Prog prog) {
         StringBuilder sb = new StringBuilder();
+        sb.append("import java.util.Scanner;\n\n"); // Adiciona import
         sb.append("public class ").append(className).append(" {\n");
-        indentLevel++; // Entra no nível da classe
+        indentLevel++;
         for (Def def : prog.definitions) {
             if (def instanceof Fun) {
                 sb.append(def.accept(this));
             }
         }
-        indentLevel--; // Sai do nível da classe
+        indentLevel--;
         sb.append("}\n");
         return sb.toString();
     }
 
+    // ATUALIZADO: Cria a instância do Scanner no início do main
     @Override
     public String visitFun(Fun fun) {
         if (fun.id.equals("main")) {
             StringBuilder sb = new StringBuilder();
             sb.append(indent()).append("public static void main(String[] args) {\n");
             
+            indentLevel++;
+            sb.append(indent()).append("Scanner _scanner = new Scanner(System.in);\n"); // Cria o Scanner
+            indentLevel--;
+
             declaredVariables.clear();
             variableTypes.clear();
             
-            sb.append(fun.body.accept(this)); // O corpo cuidará da sua própria indentação
+            sb.append(fun.body.accept(this));
             
             sb.append(indent()).append("}\n");
             return sb.toString();
         }
         return "";
+    }
+
+    // --- NOVO: Implementação do Comando Read ---
+    @Override
+    public String visitCmdRead(CmdRead cmd) {
+        StringBuilder sb = new StringBuilder();
+        // Apenas para LValueId por enquanto
+        if (cmd.lvalue instanceof LValueId) {
+            String varName = ((LValueId) cmd.lvalue).id;
+            
+            sb.append("System.out.print(\" entrada> \");\n");
+            
+            // Adiciona indentação para a próxima linha
+            sb.append(indent());
+
+            // Assumimos que a variável já foi declarada e pegamos seu tipo.
+            Type varType = variableTypes.get(varName);
+            if (varType == null) {
+                throw new IllegalStateException("Variável '" + varName + "' usada em 'read' sem ter sido declarada.");
+            }
+            
+            // Escolhe o método do Scanner com base no tipo
+            switch (varType.baseType) {
+                case "Int":
+                    sb.append(varName).append(" = _scanner.nextInt();\n");
+                    break;
+                case "Float":
+                    sb.append(varName).append(" = _scanner.nextFloat();\n");
+                    break;
+                // Por padrão, lemos como String para Char ou outros tipos
+                default:
+                    sb.append(varName).append(" = _scanner.next();\n");
+                    break;
+            }
+        } else {
+            return "// read em arrays/campos ainda não suportado\n";
+        }
+        return sb.toString();
     }
     
     // ATUALIZADO: Gerencia a indentação para todos os comandos dentro dele.
@@ -312,8 +356,6 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     public String visitCmd(Cmd exp) { return null; }
     @Override
     public String visitCmdCall(CmdCall cmd) { return null; }
-    @Override
-    public String visitCmdRead(CmdRead cmd) { return null; }
     @Override
     public String visitCmdReturn(CmdReturn cmd) { return null; }
     @Override
