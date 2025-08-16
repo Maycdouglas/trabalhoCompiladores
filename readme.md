@@ -109,9 +109,10 @@ Linux:
 
 #### TYPES - SIMPLE
 
-1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/simple/scope.lan`
+1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/simple/scope.lan` (ERRADO)
 
 #### TYPES - FUNCTION
+
 
 #### TYPES - FULL
 
