@@ -16,6 +16,9 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     // --- NOVO: Variável para controlar a indentação ---
     private int indentLevel = 0;
 
+    // --- NOVO: Contador para gerar nomes de variáveis de loop únicos ---
+    private int loopCounter = 0; 
+
     public JavaCodeGeneratorVisitor(String className) {
         this.className = className;
     }
@@ -92,6 +95,37 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             }
         }
         return "// Atribuição não suportada ainda\n";
+    }
+
+    @Override
+    public String visitCmdIterate(CmdIterate cmd) {
+        StringBuilder sb = new StringBuilder();
+        
+        // Por enquanto, trataremos apenas o caso: iterate(expr)
+        if (cmd.condition instanceof ItCondExpr) {
+            String loopVar = "_i" + loopCounter++; // Gera um nome único, ex: _i0, _i1
+            String limitExpr = cmd.condition.accept(this);
+            
+            sb.append("for (int ").append(loopVar).append(" = 0; ")
+              .append(loopVar).append(" < ").append(limitExpr).append("; ")
+              .append(loopVar).append("++) {\n");
+              
+            sb.append(cmd.body.accept(this));
+            
+            sb.append(indent()).append("}\n");
+        } else {
+            // Deixamos isso para o futuro
+            sb.append("// iterate com label ainda não suportado\n");
+        }
+        
+        return sb.toString();
+    }
+
+    // --- NOVO: Implementação do visitor para a condição do iterate ---
+    @Override
+    public String visitItCondExpr(ItCondExpr itCondExpr) {
+        // Apenas visita a expressão interna
+        return itCondExpr.expression.accept(this);
     }
 
     @Override
@@ -205,7 +239,19 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
 
     @Override
     public String visitExpChar(ExpChar exp) {
-        return "\"" + exp.value + "\"";
+        char c = exp.value;
+        switch (c) {
+            case '\n':
+                return "\"\\n\""; // Retorna a string Java para nova linha
+            case '\t':
+                return "\"\\t\""; // Retorna a string Java para tabulação
+            case '\\':
+                return "\"\\\\\""; // Retorna a string Java para a própria barra
+            // Adicione outros caracteres de escape se necessário
+            default:
+                // Para caracteres normais, apenas os coloca entre aspas duplas
+                return "\"" + c + "\"";
+        }
     }
     
     @Override
@@ -230,8 +276,6 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     public String visitCmd(Cmd exp) { return null; }
     @Override
     public String visitCmdCall(CmdCall cmd) { return null; }
-    @Override
-    public String visitCmdIterate(CmdIterate cmd) { return null; }
     @Override
     public String visitCmdRead(CmdRead cmd) { return null; }
     @Override
@@ -264,8 +308,6 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     public String visitExpUnaryOp(ExpUnaryOp exp) { return null; }
     @Override
     public String visitItCond(ItCond itCond) { return null; }
-    @Override
-    public String visitItCondExpr(ItCondExpr itCondExpr) { return null; }
     @Override
     public String visitItCondLabelled(ItCondLabelled itCondLabelled) { return null; }
     @Override

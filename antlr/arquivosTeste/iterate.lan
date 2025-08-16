@@ -1,0 +1,10 @@
+main() {
+  x = 3;
+  iterate (x) {
+    print '*';
+  }
+  print '\n';
+  iterate (2) {
+    print '+';
+  }
+}
