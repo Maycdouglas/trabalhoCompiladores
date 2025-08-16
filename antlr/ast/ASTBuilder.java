@@ -230,9 +230,9 @@ public class ASTBuilder extends langBaseVisitor<Object> {
             if (inner.length() > 1) {
                 if (inner.length() == 4 && Character.isDigit(inner.charAt(1)) && Character.isDigit(inner.charAt(2))
                         && Character.isDigit(inner.charAt(3))) {
-                    String octalString = inner.substring(1);
-                    int octalValue = Integer.parseInt(octalString, 8);
-                    return (char) octalValue;
+                    String decimalString = inner.substring(1); // pega os 3 dígitos
+                    int value = Integer.parseInt(decimalString, 10); // interpreta como DECIMAL
+                    return (char) value;
                 }
                 switch (inner) {
                     case "\\n":

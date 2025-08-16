@@ -1,0 +1,13 @@
+digraph AST {
+"Prog511833308" [label="Prog"];
+"Fun116211441" [label="Fun: main"];
+"Prog511833308" -> "Fun116211441";
+"Type607635164" [label="Type: Int"];
+"Fun116211441" -> "Type607635164";
+"CmdBlock529116035" [label="Block"];
+"Fun116211441" -> "CmdBlock529116035";
+"CmdReturn242481580" [label="Return"];
+"CmdBlock529116035" -> "CmdReturn242481580";
+"ExpInt1627800613" [label="Int: 10"];
+"CmdReturn242481580" -> "ExpInt1627800613";
+}

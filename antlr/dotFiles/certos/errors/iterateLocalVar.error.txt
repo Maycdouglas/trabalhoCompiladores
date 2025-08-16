@@ -1,0 +1,8 @@
+Exception in thread "main" java.lang.UnsupportedOperationException: 'iterate' com rótulo só suporta arrays por agora.
+	at interpreter.InterpreterVisitor.visitCmdIterate(InterpreterVisitor.java:160)
+	at ast.CmdIterate.accept(CmdIterate.java:32)
+	at interpreter.InterpreterVisitor.visitCmdBlock(InterpreterVisitor.java:81)
+	at ast.CmdBlock.accept(CmdBlock.java:34)
+	at interpreter.InterpreterVisitor.visitProg(InterpreterVisitor.java:498)
+	at ast.Prog.accept(Prog.java:37)
+	at Main.main(Main.java:60)

@@ -1,0 +1,10 @@
+Exception in thread "main" java.lang.RuntimeException: Operação binária não suportada: IntValue && IntValue
+	at interpreter.InterpreterVisitor.visitExpBinOp(InterpreterVisitor.java:301)
+	at ast.ExpBinOp.accept(ExpBinOp.java:34)
+	at interpreter.InterpreterVisitor.visitCmdAssign(InterpreterVisitor.java:55)
+	at ast.CmdAssign.accept(CmdAssign.java:32)
+	at interpreter.InterpreterVisitor.visitCmdBlock(InterpreterVisitor.java:81)
+	at ast.CmdBlock.accept(CmdBlock.java:34)
+	at interpreter.InterpreterVisitor.visitProg(InterpreterVisitor.java:498)
+	at ast.Prog.accept(Prog.java:37)
+	at Main.main(Main.java:60)

@@ -16,38 +16,19 @@ import java.util.Stack;
 
 public class InterpreterVisitor implements Visitor<Object> {
 
-    private final Stack<Map<String, Value>> memoryStack = new Stack<>();
-    private final Map<String, Fun> functionDefinitions = new HashMap<>();
-    private final Map<String, Data> dataDefinitions = new HashMap<>();
+    private final Memory memory = new Memory();
     private final Scanner scanner = new Scanner(System.in);
-
-    private List<Value> returnValues = new ArrayList<>();
+    private List<Value> returnValues = new ArrayList<>(); // Lista para armazenar valores retornados por funções
+    // Deve ficar aqui, pois é temporário e só existe enquanto estamos processando uma função
 
     public InterpreterVisitor() {
-        memoryStack.push(new HashMap<>());
+        memory.pushScope();// Inicializa o escopo global
     }
 
-    private Map<String, Value> currentScope() {
-        return memoryStack.peek();
-    }
-
+    // POSSO VIR AQUI E ALTERAR PARA return cmd.accept(this); SE NECESSÁRIO
     @Override
-    public Object visitCmd(Cmd exp) {
-        return null;
-    }
-
-    private Value visitLvalExprFromLValue(LValue lv) {
-        if (lv instanceof LValueId) {
-            return (Value) currentScope().get(((LValueId) lv).id);
-        }
-        if (lv instanceof LValueField) {
-            Value target = visitLvalExprFromLValue(((LValueField) lv).target);
-            if (target instanceof DataValue) {
-                return ((DataValue) target).getField(((LValueField) lv).field);
-            }
-        }
-        // Adicionar lógica para LValueIndex se necessário no futuro
-        throw new RuntimeException("Não é possível avaliar o LValue: " + lv.getClass().getSimpleName());
+    public Object visitCmd(Cmd cmd) {
+        throw new UnsupportedOperationException("visitCmd deve ser chamado apenas em subclasses concretas.");
     }
 
     @Override
@@ -55,9 +36,10 @@ public class InterpreterVisitor implements Visitor<Object> {
         Value valueToAssign = (Value) cmd.expression.accept(this);
 
         if (cmd.target instanceof LValueIndex) {
+            // Atribuição em array
             LValueIndex lvalIndex = (LValueIndex) cmd.target;
             String arrayName = extractVarName(lvalIndex.target);
-            Value arrayVal = (Value) currentScope().get(arrayName);
+            Value arrayVal = (Value) memory.lookup(arrayName);
             Value indexVal = (Value) lvalIndex.index.accept(this);
 
             if (arrayVal instanceof ArrayValue && indexVal instanceof IntValue) {
@@ -66,14 +48,30 @@ public class InterpreterVisitor implements Visitor<Object> {
             } else {
                 throw new RuntimeException("Atribuição inválida em array.");
             }
+
+        } else if (cmd.target instanceof LValueField) {
+            // Atribuição em campo de data
+            LValueField lvalField = (LValueField) cmd.target;
+            Value objVal = (Value) lvalField.target.accept(this);
+
+            if (!(objVal instanceof DataValue)) {
+                throw new RuntimeException("Tentativa de atribuir campo em algo que não é um 'data'.");
+            }
+
+            ((DataValue) objVal).setField(lvalField.field, valueToAssign);
+
         } else if (cmd.target instanceof LValueId) {
+            // Atribuição direta a variável
             String varName = ((LValueId) cmd.target).id;
-            currentScope().put(varName, valueToAssign);
+            memory.currentScope().put(varName, valueToAssign);
+
         } else {
             throw new UnsupportedOperationException("Tipo de atribuição não suportado.");
         }
+
         return null;
     }
+
 
     @Override
     public Object visitCmdBlock(CmdBlock cmd) {
@@ -85,7 +83,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitCmdCall(CmdCall cmd) {
-        Fun funDef = functionDefinitions.get(cmd.id);
+        Fun funDef = memory.getFunction(cmd.id);
         if (funDef == null) {
             throw new RuntimeException("Função '" + cmd.id + "' não definida.");
         }
@@ -99,32 +97,40 @@ public class InterpreterVisitor implements Visitor<Object> {
             Value argValue = (Value) cmd.args.get(i).accept(this);
             newScope.put(paramName, argValue);
         }
-        memoryStack.push(newScope);
+
+        memory.pushScope(newScope);
 
         this.returnValues.clear();
-        funDef.body.accept(this);
 
-        memoryStack.pop();
+        List<Value> returned = null;
+        try {
+            // Executa o corpo da função UMA vez e captura valores retornados via exceção
+            funDef.body.accept(this);
+        } catch (ReturnException re) {
+            returned = re.getValues();
+        } finally {
+            memory.popScope();
+        }
 
-        if (cmd.rets != null && cmd.rets.size() > 0) {
-            if (cmd.rets.size() != this.returnValues.size()) {
+        if (cmd.rets != null && !cmd.rets.isEmpty()) {
+            if (returned == null) {
+                throw new RuntimeException("Função não retornou valores mas chamador esperava " + cmd.rets.size());
+            }
+            if (returned.size() != cmd.rets.size()) {
                 throw new RuntimeException("Número de variáveis de retorno (" + cmd.rets.size()
-                        + ") é diferente do número de valores retornados (" + this.returnValues.size() + ").");
+                        + ") é diferente do número de valores retornados (" + returned.size() + ").");
             }
             for (int i = 0; i < cmd.rets.size(); i++) {
                 LValue targetLval = cmd.rets.get(i);
-                Value returnedValue = this.returnValues.get(i);
-
+                Value returnedValue = returned.get(i);
                 if (targetLval instanceof LValueId) {
-                    currentScope().put(((LValueId) targetLval).id, returnedValue);
+                    memory.currentScope().put(((LValueId) targetLval).id, returnedValue);
                 } else {
-                    throw new UnsupportedOperationException(
-                            "Atribuição de retorno múltiplo só suporta variáveis simples.");
+                    throw new UnsupportedOperationException("Atribuição de retorno múltiplo só suporta variáveis simples.");
                 }
             }
         }
 
-        this.returnValues.clear();
         return null;
     }
 
@@ -140,42 +146,53 @@ public class InterpreterVisitor implements Visitor<Object> {
     }
 
     @Override
-    public Object visitCmdIterate(CmdIterate cmd) {
-        if (cmd.condition instanceof ItCondLabelled) {
-            ItCondLabelled itCond = (ItCondLabelled) cmd.condition;
-            Value iterable = (Value) itCond.expression.accept(this);
+public Object visitCmdIterate(CmdIterate cmd) {
+    if (cmd.condition instanceof ItCondLabelled itCond) {
+        // Laço com rótulo (ex: iterate(i: v))
+        Value iterable = (Value) itCond.expression.accept(this);
 
-            if (iterable instanceof ArrayValue) {
-                ArrayValue array = (ArrayValue) iterable;
-                Map<String, Value> loopScope = new HashMap<>();
-                memoryStack.push(loopScope);
-
-                for (Value element : array.getValues()) {
-                    currentScope().put(itCond.label, element);
-                    cmd.body.accept(this); // Executa o corpo
-                }
-
-                memoryStack.pop();
-            } else {
-                throw new UnsupportedOperationException("'iterate' com rótulo só suporta arrays por agora.");
+        if (iterable instanceof ArrayValue array) {
+            for (Value element : array.getValues()) {
+                memory.currentScope().put(itCond.label, element);
+                cmd.body.accept(this);
+            }
+        } else if (iterable instanceof IntValue intVal) {
+            int max = intVal.getValue();
+            for (int i = 0; i < max; i++) {
+                memory.currentScope().put(itCond.label, new IntValue(i));
+                cmd.body.accept(this);
             }
         } else {
-            while (true) {
-                Value conditionValue = (Value) cmd.condition.accept(this);
-                if (conditionValue instanceof BoolValue && ((BoolValue) conditionValue).getValue()) {
-                    cmd.body.accept(this);
-                } else {
-                    break;
-                }
-            }
+            throw new UnsupportedOperationException("'iterate' com rótulo só suporta arrays ou inteiros.");
         }
-        return null;
+    } else if (cmd.condition instanceof ItCondExpr itCondExpr) {
+        // Laço sem rótulo (ex: iterate(nlines))
+        Value iterable = (Value) itCondExpr.expression.accept(this);
+
+        if (iterable instanceof IntValue intVal) {
+            int max = intVal.getValue();
+            memory.pushScope();
+            try {
+                for (int i = 0; i < max; i++) {
+                    cmd.body.accept(this);
+                }
+            } finally {
+                memory.popScope();
+            }
+        } else {
+            throw new UnsupportedOperationException("'iterate' sem rótulo só suporta inteiros.");
+        }
+    } else {
+        throw new UnsupportedOperationException("Tipo de condição de iterate não suportado.");
     }
+    return null;
+}
+
 
     @Override
     public Object visitCmdPrint(CmdPrint cmd) {
         Value valueToPrint = (Value) cmd.value.accept(this);
-        System.out.println(valueToPrint.toString());
+        System.out.print(valueToPrint.toString());
         return null;
     }
 
@@ -186,10 +203,10 @@ public class InterpreterVisitor implements Visitor<Object> {
 
         if (scanner.hasNextInt()) {
             int value = scanner.nextInt();
-            currentScope().put(varName, new IntValue(value));
+            memory.currentScope().put(varName, new IntValue(value));
         } else if (scanner.hasNextFloat()) {
             float value = scanner.nextFloat();
-            currentScope().put(varName, new FloatValue(value));
+            memory.currentScope().put(varName, new FloatValue(value));
         } else {
             String input = scanner.next();
             System.err.println(
@@ -198,28 +215,47 @@ public class InterpreterVisitor implements Visitor<Object> {
         return null;
     }
 
+    // public class ReturnException extends RuntimeException {
+    //     public final List<Value> values;
+    //     public ReturnException(List<Value> values) {
+    //         this.values = values;
+    //     }
+    // }
+
     @Override
     public Object visitCmdReturn(CmdReturn cmd) {
-        this.returnValues.clear();
+        List<Value> values = new ArrayList<>();
         for (Exp exp : cmd.values) {
-            this.returnValues.add((Value) exp.accept(this));
+            values.add((Value) exp.accept(this));
+        }
+        throw new ReturnException(values);
+    }
+
+    @Override
+    public Object visitData(Data data) {
+        if (data instanceof DataAbstract) {
+            return visitDataAbstract((DataAbstract) data);
+        } else if (data instanceof DataRegular) {
+            return visitDataRegular((DataRegular) data);
+        }
+        throw new RuntimeException("Tipo de data desconhecido: " + data.getClass().getName());
+    }
+
+    @Override
+    public Object visitDataAbstract(DataAbstract data) {
+        // Armazena a definição do tipo abstrato
+        memory.setDataDef(data.name, data);
+        // Também registrar funções internas associadas ao tipo
+        for (Fun fun : data.functions) {
+            memory.setFunction(fun.id, fun);
         }
         return null;
     }
 
     @Override
-    public Object visitData(Data data) {
-        return null;
-    }
-
-    @Override
-    public Object visitDataAbstract(DataAbstract data) {
-        return null;
-    }
-
-    @Override
     public Object visitDataRegular(DataRegular data) {
-        dataDefinitions.put(data.name, data);
+        // Armazena a definição do tipo regular
+        memory.setDataDef(data.name, data);
         return null;
     }
 
@@ -242,6 +278,23 @@ public class InterpreterVisitor implements Visitor<Object> {
     public Object visitExpBinOp(ExpBinOp exp) {
         Value left = (Value) exp.left.accept(this);
         Value right = (Value) exp.right.accept(this);
+
+        // Tratamento de comparação envolvendo NullValue
+        if (exp.op.equals("==")) {
+            if (left instanceof NullValue && right instanceof NullValue) {
+                return new BoolValue(true);
+            }
+            if (left instanceof NullValue || right instanceof NullValue) {
+                return new BoolValue(false);
+            }
+        } else if (exp.op.equals("!=")) {
+            if (left instanceof NullValue && right instanceof NullValue) {
+                return new BoolValue(false);
+            }
+            if (left instanceof NullValue || right instanceof NullValue) {
+                return new BoolValue(true);
+            }
+        }
 
         if (left instanceof IntValue && right instanceof IntValue) {
             int l = ((IntValue) left).getValue();
@@ -288,18 +341,36 @@ public class InterpreterVisitor implements Visitor<Object> {
             }
         }
 
-        if (left instanceof BoolValue && right instanceof BoolValue) {
-            boolean l = ((BoolValue) left).getValue();
-            boolean r = ((BoolValue) right).getValue();
+        if (left instanceof CharValue && right instanceof CharValue) {
+            char l = ((CharValue) left).getValue();
+            char r = ((CharValue) right).getValue();
             switch (exp.op) {
-                case "&&":
-                    return new BoolValue(l && r);
+                case "==":
+                    return new BoolValue(l == r);
+                case "!=":
+                    return new BoolValue(l != r);
+                case "<":
+                    return new BoolValue(l < r);
             }
+        }
+
+        if ((exp.op.equals("&&") || exp.op.equals("||")) &&
+            (left instanceof IntValue || left instanceof BoolValue) &&
+            (right instanceof IntValue || right instanceof BoolValue)) {
+
+            boolean l = (left instanceof IntValue) ? ((IntValue) left).getValue() != 0
+                                                : ((BoolValue) left).getValue();
+
+            boolean r = (right instanceof IntValue) ? ((IntValue) right).getValue() != 0
+                                                : ((BoolValue) right).getValue();
+
+            return new BoolValue(exp.op.equals("&&") ? (l && r) : (l || r));
         }
 
         throw new RuntimeException("Operação binária não suportada: " + left.getClass().getSimpleName() + " " + exp.op
                 + " " + right.getClass().getSimpleName());
     }
+
 
     @Override
     public Object visitExpBool(ExpBool exp) {
@@ -308,7 +379,7 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpCall(ExpCall exp) {
-        Fun funDef = functionDefinitions.get(exp.id);
+        Fun funDef = memory.getFunction(exp.id);
         if (funDef == null) {
             throw new RuntimeException("Função '" + exp.id + "' não definida.");
         }
@@ -324,19 +395,45 @@ public class InterpreterVisitor implements Visitor<Object> {
             newScope.put(paramName, argValue);
         }
 
-        memoryStack.push(newScope);
+        memory.pushScope(newScope);
 
-        this.returnValues = null;
-        funDef.body.accept(this);
+        List<Value> returned = null;
+        try {
+            funDef.body.accept(this);
+        } catch (ReturnException re) {
+            returned = re.getValues();
+        } finally {
+            memory.popScope();
+        }
 
-        memoryStack.pop();
+        if (returned == null) {
+            returned = new ArrayList<>();
+        }
 
-        return this.returnValues;
+        ArrayValue arrayValue = new ArrayValue(returned.size());
+        for (int i = 0; i < returned.size(); i++) {
+            arrayValue.set(i, returned.get(i));
+        }
+
+        return arrayValue;
     }
+
 
     @Override
     public Object visitExpCallIndexed(ExpCallIndexed exp) {
-        return null;
+        Object result = exp.call.accept(this);
+
+        if (!(result instanceof ArrayValue arr)) {
+            throw new RuntimeException("Function call did not return an array: " + result);
+        }
+
+        Object indexObj = exp.index.accept(this);
+        if (!(indexObj instanceof IntValue intVal)) {
+            throw new RuntimeException("Index must evaluate to an integer.");
+        }
+        int index = intVal.getValue();
+
+        return arr.get(index);
     }
 
     @Override
@@ -388,8 +485,8 @@ public class InterpreterVisitor implements Visitor<Object> {
         }
 
         String typeName = exp.type.baseType;
-        if (dataDefinitions.containsKey(typeName)) {
-            DataRegular dataDef = (DataRegular) dataDefinitions.get(typeName);
+        if (memory.hasDataDef(typeName)) {
+            DataRegular dataDef = (DataRegular) memory.getDataDef(typeName);
             return new DataValue(dataDef);
         }
 
@@ -430,15 +527,12 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitExpVar(ExpVar exp) {
-        if (!currentScope().containsKey(exp.name)) {
-            throw new RuntimeException("Variável não inicializada: " + exp.name);
-        }
-        return currentScope().get(exp.name);
+        return memory.lookup(exp.name);
     }
 
     @Override
     public Object visitFun(Fun fun) {
-        functionDefinitions.put(fun.id, fun);
+        memory.setFunction(fun.id, fun);
         return null;
     }
 
@@ -465,17 +559,33 @@ public class InterpreterVisitor implements Visitor<Object> {
 
     @Override
     public Object visitLValueField(LValueField lValueField) {
-        return null;
+        Value objVal = (Value) lValueField.target.accept(this);
+
+        if (objVal instanceof DataValue) {
+            return ((DataValue) objVal).getField(lValueField.field);
+        }
+        throw new RuntimeException("Tentativa de acessar campo de algo que não é um 'data'.");
     }
 
     @Override
     public Object visitLValueId(LValueId lValueId) {
-        return null;
+        String varName = lValueId.id;
+        if (!memory.currentScope().containsKey(varName)) {
+            throw new RuntimeException("Variável não inicializada: " + varName);
+        }
+        return memory.currentScope().get(varName);
     }
 
     @Override
     public Object visitLValueIndex(LValueIndex lValueIndex) {
-        return null;
+        Value arrayVal = (Value) lValueIndex.target.accept(this);
+        Value indexVal = (Value) lValueIndex.index.accept(this);
+
+        if (arrayVal instanceof ArrayValue && indexVal instanceof IntValue) {
+            int index = ((IntValue) indexVal).getValue();
+            return ((ArrayValue) arrayVal).get(index);
+        }
+        throw new RuntimeException("Indexação inválida.");
     }
 
     @Override
@@ -493,7 +603,7 @@ public class InterpreterVisitor implements Visitor<Object> {
             }
         }
 
-        Fun mainFunction = functionDefinitions.get("main");
+        Fun mainFunction = memory.getFunction("main");
         if (mainFunction != null) {
             mainFunction.body.accept(this);
         } else {
@@ -511,6 +621,9 @@ public class InterpreterVisitor implements Visitor<Object> {
     private String extractVarName(LValue lval) {
         if (lval instanceof LValueId idLval) {
             return idLval.id;
+        } else if (lval instanceof LValueIndex indexLval) {
+            // Recursivamente pega a base da cadeia de índices
+            return extractVarName(indexLval.target);
         }
         throw new UnsupportedOperationException("LValue não suportado: " + lval.getClass().getSimpleName());
     }
