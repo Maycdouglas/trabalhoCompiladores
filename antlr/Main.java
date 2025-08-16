@@ -10,8 +10,6 @@ import interpreter.*;
 import semant.SemanticVisitor;
 import jasmin.JasminGeneratorVisitor;
 
-// import codegen.JasminGeneratorVisitor; // Descomentar quando implementar
-
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -28,7 +26,6 @@ import java.util.Stack;
  */
 public class Main {
 
-    // --- Campos Estáticos para Armazenar os Resultados de Cada Fase ---
     private static langLexer lexer;
     private static CommonTokenStream tokens;
     private static langParser parser;
@@ -54,7 +51,6 @@ public class Main {
         errorListener = new SyntaxErrorListener();
 
         try {
-            // Execução do analisador léxico e sintático, necessária em todas as diretivas
             lexer(filePath);
             parser();
 
@@ -63,7 +59,6 @@ public class Main {
                 return;
             }
 
-            // Geração de árvore sintática
             ast();
 
             switch (directive) {
@@ -89,7 +84,6 @@ public class Main {
 
         } catch (RuntimeException e) {
             System.out.println("reject");
-            // Imprime a mensagem de erro específica da fase que falhou
             System.err.println(e.getMessage());
         }
     }
@@ -200,7 +194,7 @@ public class Main {
     private static String getBaseName(String filePath) {
         int lastSlash = filePath.lastIndexOf('/');
         if (lastSlash == -1) {
-            lastSlash = filePath.lastIndexOf('\\'); // Para compatibilidade com Windows
+            lastSlash = filePath.lastIndexOf('\\');
         }
         int lastDot = filePath.lastIndexOf('.');
         if (lastDot == -1 || lastDot < lastSlash) {

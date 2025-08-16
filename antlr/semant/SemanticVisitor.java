@@ -60,33 +60,28 @@ public class SemanticVisitor implements Visitor<Type> {
                 return scope.get(varName);
             }
         }
-        return null; // não lança erro
+        return null;
     }
 
     @Override
     public Type visitCmdAssign(CmdAssign cmd) {
-        // 1. Avalia a expressão do lado direito para saber o tipo
         Type expressionType = cmd.expression.accept(this);
 
         if (expressionType.isError()) {
-            return Type.ERROR; // Propaga erro
+            return Type.ERROR;
         }
 
-        // 2. Se for uma variável simples (ex.: x = 3)
         if (cmd.target instanceof LValueId) {
             LValueId lvalueId = (LValueId) cmd.target;
             String varName = lvalueId.id;
 
-            // Usa findVar que retorna null se não existir
             Type lValueType = findVar(varName);
 
             if (lValueType == null) {
-                // Declaração implícita
                 currentScope().put(varName, expressionType);
                 lvalueId.expType = expressionType;
                 return expressionType;
             } else {
-                // Variável já existe — verifica compatibilidade
                 lvalueId.expType = lValueType;
                 boolean compatible = lValueType.isEquivalent(expressionType) ||
                         (lValueType.isReference() && expressionType.isNull());
@@ -98,9 +93,7 @@ public class SemanticVisitor implements Visitor<Type> {
                 }
                 return lValueType;
             }
-        }
-        // 3. Se for algo mais complexo (a[i], p.x)
-        else {
+        } else {
             Type lValueType = cmd.target.accept(this);
 
             if (lValueType.isError()) {
@@ -249,27 +242,23 @@ public class SemanticVisitor implements Visitor<Type> {
 
     @Override
     public Type visitCmdReturn(CmdReturn cmd) {
-        // Garante que o 'return' está dentro de uma função.
         if (currentFunction == null) {
             addError(cmd.getLine(), "Comando 'return' só pode ser usado dentro de uma função.");
             return Type.ERROR;
         }
 
         List<Type> declaredReturnTypes = currentFunction.retTypes;
-        List<Exp> returnedExpressions = cmd.values; // Usa o nome correto do campo: 'values'
+        List<Exp> returnedExpressions = cmd.values;
 
-        // --- PONTO CRÍTICO 1: Validar a CONTAGEM de retornos ---
         if (declaredReturnTypes.size() != returnedExpressions.size()) {
             addError(cmd.getLine(), "A função '" + currentFunction.id + "' espera " + declaredReturnTypes.size() +
                     " valores de retorno, mas " + returnedExpressions.size() + " foram fornecidos.");
-            // Mesmo com o erro, visita as expressões para encontrar outros possíveis erros.
             for (Exp exp : returnedExpressions) {
                 exp.accept(this);
             }
             return Type.ERROR;
         }
 
-        // --- PONTO CRÍTICO 2: Validar os TIPOS de cada retorno ---
         for (int i = 0; i < declaredReturnTypes.size(); i++) {
             Type declaredType = declaredReturnTypes.get(i);
             Type actualType = returnedExpressions.get(i).accept(this);
@@ -280,7 +269,7 @@ public class SemanticVisitor implements Visitor<Type> {
                                 "', mas encontrado '" + actualType + "'.");
             }
         }
-        return Type.VOID; // O comando 'return' em si não tem um tipo.
+        return Type.VOID;
     }
 
     @Override
@@ -346,21 +335,17 @@ public class SemanticVisitor implements Visitor<Type> {
         Type rightType = expBinOp.right.accept(this);
         Type resultType = null;
 
-        // Se qualquer um dos operandos tiver um erro, propaga o erro.
         if (leftType.isError() || rightType.isError()) {
             expBinOp.expType = Type.ERROR;
             return Type.ERROR;
         }
 
         switch (expBinOp.op) {
-            // Operações Aritméticas: +, -, *, /, %
             case "+":
             case "-":
             case "*":
             case "/":
             case "%":
-                // Regra: Ambos devem ser numéricos (Int ou Float).
-                // Se um for Float, o resultado é Float (promoção de tipo).
                 if (leftType.isNumeric() && rightType.isNumeric()) {
                     if (leftType.isFloat() || rightType.isFloat()) {
                         resultType = new Type("Float", 0);
@@ -370,44 +355,32 @@ public class SemanticVisitor implements Visitor<Type> {
                 }
                 break;
 
-            // Operações Relacionais: <
             case "<":
-                // Regra: Ambos devem ser numéricos e do mesmo tipo.
                 if (leftType.isNumeric() && rightType.isNumeric() && leftType.isEquivalent(rightType)) {
                     resultType = new Type("Bool", 0);
                 }
                 break;
 
-            // Operações de Igualdade: ==, !=
             case "==":
             case "!=":
-                // Regra 1: Tipos primitivos devem ser equivalentes.
                 if (leftType.isPrimitive() && rightType.isPrimitive() && leftType.isEquivalent(rightType)) {
                     resultType = new Type("Bool", 0);
-                }
-                // Regra 2: Qualquer tipo de referência (array ou data) pode ser comparado com
-                // 'null'.
-                else if (leftType.isReference() && rightType.isNull()) {
+                } else if (leftType.isReference() && rightType.isNull()) {
                     resultType = new Type("Bool", 0);
                 } else if (rightType.isReference() && leftType.isNull()) {
                     resultType = new Type("Bool", 0);
-                }
-                // Regra 3: Dois tipos de referência podem ser comparados se forem equivalentes.
-                else if (leftType.isReference() && rightType.isReference() && leftType.isEquivalent(rightType)) {
+                } else if (leftType.isReference() && rightType.isReference() && leftType.isEquivalent(rightType)) {
                     resultType = new Type("Bool", 0);
                 }
                 break;
 
-            // Operações Lógicas: &&
             case "&&":
-                // Regra: Ambos devem ser Bool.
                 if (leftType.isBool() && rightType.isBool()) {
                     resultType = new Type("Bool", 0);
                 }
                 break;
         }
 
-        // Se nenhuma regra correspondeu, a operação é inválida.
         if (resultType == null) {
             addError(expBinOp.getLine(), "Operação '" + expBinOp.op + "' inválida entre os tipos "
                     + leftType.toString() + " e " + rightType.toString());
@@ -472,7 +445,7 @@ public class SemanticVisitor implements Visitor<Type> {
             return Type.ERROR;
         }
 
-        lValueId.expType = varType; 
+        lValueId.expType = varType;
         return varType;
     }
 
@@ -578,9 +551,6 @@ public class SemanticVisitor implements Visitor<Type> {
         } else if (funDef.retTypes.size() == 1) {
             exp.expType = funDef.retTypes.get(0);
         } else {
-            // CORREÇÃO: Atribui um tipo não-nulo para o caso de múltiplos retornos.
-            // O nó representa um conjunto de valores, não um único tipo,
-            // mas o campo expType não pode ser nulo. Usamos VOID como placeholder.
             exp.expType = Type.VOID;
         }
         return exp.expType;
@@ -776,7 +746,7 @@ public class SemanticVisitor implements Visitor<Type> {
         }
 
         Type resultType = new Type(targetType.baseType, targetType.arrayDim - 1);
-        lValueIndex.expType = resultType; // Anota o nó!
+        lValueIndex.expType = resultType;
         return resultType;
     }
 
