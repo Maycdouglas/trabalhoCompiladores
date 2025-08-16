@@ -101,10 +101,26 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     public String visitCmdIterate(CmdIterate cmd) {
         StringBuilder sb = new StringBuilder();
         
-        // Por enquanto, trataremos apenas o caso: iterate(expr)
         if (cmd.condition instanceof ItCondExpr) {
-            String loopVar = "_i" + loopCounter++; // Gera um nome único, ex: _i0, _i1
+            // Lógica para iterate(expr) - já implementada
+            String loopVar = "_i" + loopCounter++;
             String limitExpr = cmd.condition.accept(this);
+            sb.append("for (int ").append(loopVar).append(" = 0; ")
+              .append(loopVar).append(" < ").append(limitExpr).append("; ")
+              .append(loopVar).append("++) {\n");
+            sb.append(cmd.body.accept(this));
+            sb.append(indent()).append("}\n");
+            
+        } else if (cmd.condition instanceof ItCondLabelled) {
+            // --- NOVO: Lógica para iterate(id : expr) ---
+            ItCondLabelled cond = (ItCondLabelled) cmd.condition;
+            String loopVar = cond.label;
+            String limitExpr = cond.expression.accept(this);
+            
+            // Adiciona a variável do loop ao escopo para que não seja redeclarada dentro do bloco
+            declaredVariables.add(loopVar);
+            // Assume que é um Int por enquanto
+            variableTypes.put(loopVar, new Type("Int", 0)); 
             
             sb.append("for (int ").append(loopVar).append(" = 0; ")
               .append(loopVar).append(" < ").append(limitExpr).append("; ")
@@ -113,12 +129,19 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             sb.append(cmd.body.accept(this));
             
             sb.append(indent()).append("}\n");
-        } else {
-            // Deixamos isso para o futuro
-            sb.append("// iterate com label ainda não suportado\n");
+            
+            // Remove a variável do loop do escopo para que possa ser usada novamente fora
+            declaredVariables.remove(loopVar);
+            variableTypes.remove(loopVar);
         }
         
         return sb.toString();
+    }
+
+    // --- NOVO: Visitor para a condição com label ---
+    @Override
+    public String visitItCondLabelled(ItCondLabelled itCondLabelled) {
+        return itCondLabelled.expression.accept(this);
     }
 
     // --- NOVO: Implementação do visitor para a condição do iterate ---
@@ -180,7 +203,11 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     @Override
     public String visitCmdPrint(CmdPrint cmd) {
         String value = cmd.value.accept(this);
-        return "System.out.println(" + value + ");\n";
+        // Se for um caractere de nova linha, usa println(), senão usa print().
+        if (cmd.value instanceof ExpChar && ((ExpChar) cmd.value).value == '\n') {
+            return "System.out.println();\n";
+        }
+        return "System.out.print(" + value + ");\n";
     }
     
     // --- NOVO: Implementação do CmdIf com a nova estratégia de indentação ---
@@ -271,6 +298,15 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return "(" + exp.exp.accept(this) + ")";
     }
 
+    // --- NOVO: Implementação dos Operadores Unários ---
+    @Override
+    public String visitExpUnaryOp(ExpUnaryOp exp) {
+        String operand = exp.exp.accept(this);
+        // A tradução é direta, apenas colocamos o operador na frente
+        // e garantimos os parênteses para a precedência correta.
+        return "(" + exp.op + operand + ")";
+    }
+
     // --- Métodos não implementados (mantidos como no seu arquivo) ---
     @Override
     public String visitCmd(Cmd exp) { return null; }
@@ -305,11 +341,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     @Override
     public String visitExpNull(ExpNull exp) { return null; }
     @Override
-    public String visitExpUnaryOp(ExpUnaryOp exp) { return null; }
-    @Override
     public String visitItCond(ItCond itCond) { return null; }
-    @Override
-    public String visitItCondLabelled(ItCondLabelled itCondLabelled) { return null; }
     @Override
     public String visitLValue(LValue lValue) { return null; }
     @Override

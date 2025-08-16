@@ -136,12 +136,12 @@ Linux:
 
 1. `java -cp ".:antlr-4.8-complete.jar" Main -i ../Lang/semantica/certo/simple/assoc.lan`
 2. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/sintaxe/certo/printCMD.lan ./build`
-3. `java -cp ".:antlr-4.8-complete.jar" Main -src arquivosTeste/iterate.lan ./build`
+3. `java -cp ".:antlr-4.8-complete.jar" Main -src arquivosTeste/unary.lan ./build`
 
 ### COMANDO PARA EXECUTAR SOURCE-TO-SOURCE
 
-1. `javac build/iterate.java`
-2. `java -cp build iterate`
+1. `javac build/unary.java`
+2. `java -cp build unary`
 
 ### PASSOS PARA GERAR A ÁRVORE EM IMAGEM:
 

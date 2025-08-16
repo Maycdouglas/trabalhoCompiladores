@@ -1,0 +1,10 @@
+main() {
+  x = 1;
+  iterate (i : 4) {
+    x = x * 2;
+    print i;
+    print ' ';
+  }
+  print '\n';
+  print x; -- O valor final de x deve ser 16
+}
