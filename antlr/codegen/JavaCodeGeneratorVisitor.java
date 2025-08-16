@@ -3,10 +3,14 @@ package codegen;
 
 import ast.*;
 import interpreter.Visitor;
+import java.util.HashSet;
+import java.util.Set;
 
 public class JavaCodeGeneratorVisitor implements Visitor<String> {
 
     private final String className;
+    // CORREÇÃO: A variável foi movida para ser um campo da classe.
+    private final Set<String> declaredVariables = new HashSet<>();
 
     public JavaCodeGeneratorVisitor(String className) {
         this.className = className;
@@ -55,6 +59,57 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         String value = cmd.value.accept(this);
         return "System.out.println(" + value + ");\n";
     }
+
+     // --- NOVO: Implementação da Atribuição (CmdAssign) ---
+    @Override
+    public String visitCmdAssign(CmdAssign cmd) {
+        // Só trataremos LValueId por enquanto (atribuição a variáveis simples como 'x')
+        if (cmd.target instanceof LValueId) {
+            String varName = ((LValueId) cmd.target).id;
+            String expression = cmd.expression.accept(this);
+
+            // Verifica se a variável já foi declarada
+            if (!declaredVariables.contains(varName)) {
+                // Se não foi, declara-a. O tipo é pego da expressão à direita.
+                declaredVariables.add(varName);
+                String javaType = getJavaType(cmd.expression.expType);
+                return javaType + " " + varName + " = " + expression + ";\n";
+            } else {
+                // Se já foi, apenas atribui o novo valor.
+                return varName + " = " + expression + ";\n";
+            }
+        }
+        return "// Atribuição não suportada ainda\n";
+    }
+
+    // --- NOVO: Implementação de Variáveis em Expressões ---
+    @Override
+    public String visitExpVar(ExpVar exp) {
+        // Quando uma variável é usada, simplesmente retornamos seu nome.
+        return exp.name;
+    }
+    
+    // --- NOVO: Helper para mapear tipos de 'lang' para Java ---
+    private String getJavaType(Type langType) {
+        if (langType.arrayDim > 0) {
+            // Lógica para arrays (será implementada depois)
+            return getJavaType(new Type(langType.baseType, 0)) + "[]".repeat(langType.arrayDim);
+        }
+        switch (langType.baseType) {
+            case "Int":
+                return "int";
+            case "Float":
+                return "float";
+            case "Bool":
+                return "boolean";
+            case "Char":
+                // Em Java, literais de string são com aspas duplas. Vamos usar String por simplicidade.
+                return "String"; 
+            default:
+                // Para tipos de dados definidos pelo usuário (futuramente)
+                return langType.baseType;
+        }
+    }
     
     // Expressões simples
     @Override
@@ -64,8 +119,13 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
 
     @Override
     public String visitExpChar(ExpChar exp) {
-        // Caracteres em Java são delimitados por aspas simples
-        return "'" + exp.value + "'";
+        // Para consistência, trataremos todos os literais de texto como String em Java
+        return "\"" + exp.value + "\"";
+    }
+    
+    @Override
+    public String visitExpBool(ExpBool exp) {
+        return String.valueOf(exp.value);
     }
     
     // --- Métodos não implementados (ainda) ---
@@ -73,8 +133,6 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
 
     @Override
     public String visitCmd(Cmd exp) { return null; }
-    @Override
-    public String visitCmdAssign(CmdAssign cmd) { return null; }
     @Override
     public String visitCmdCall(CmdCall cmd) { return null; }
     @Override
@@ -100,8 +158,6 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     @Override
     public String visitExpBinOp(ExpBinOp exp) { return null; }
     @Override
-    public String visitExpBool(ExpBool exp) { return null; }
-    @Override
     public String visitExpCall(ExpCall exp) { return null; }
     @Override
     public String visitExpCallIndexed(ExpCallIndexed exp) { return null; }
@@ -119,8 +175,6 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     public String visitExpParen(ExpParen exp) { return null; }
     @Override
     public String visitExpUnaryOp(ExpUnaryOp exp) { return null; }
-    @Override
-    public String visitExpVar(ExpVar exp) { return null; }
     @Override
     public String visitItCond(ItCond itCond) { return null; }
     @Override
