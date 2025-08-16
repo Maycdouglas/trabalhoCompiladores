@@ -140,8 +140,8 @@ Linux:
 
 ### COMANDO PARA EXECUTAR SOURCE-TO-SOURCE
 
-1. `javac build/expression.java`
-2. `java -cp build expression`
+1. `javac build/if_else.java`
+2. `java -cp build if_else`
 
 ### PASSOS PARA GERAR A ÁRVORE EM IMAGEM:
 

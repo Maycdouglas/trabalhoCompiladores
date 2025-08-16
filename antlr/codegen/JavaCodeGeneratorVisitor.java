@@ -12,9 +12,17 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     private final String className;
     private final Set<String> declaredVariables = new HashSet<>();
     private final Map<String, Type> variableTypes = new java.util.HashMap<>();
+    
+    // --- NOVO: Variável para controlar a indentação ---
+    private int indentLevel = 0;
 
     public JavaCodeGeneratorVisitor(String className) {
         this.className = className;
+    }
+
+    // --- NOVO: Método auxiliar para gerar a indentação ---
+    private String indent() {
+        return "    ".repeat(indentLevel);
     }
 
     private Type inferExpressionType(Exp exp) {
@@ -86,23 +94,22 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return "// Atribuição não suportada ainda\n";
     }
 
-    // --- NOVO MÉTODO ADICIONADO ---
     @Override
     public String visitExpVar(ExpVar exp) {
         return exp.name;
     }
     
-    // --- Restante do código (sem alterações) ---
-
     @Override
     public String visitProg(Prog prog) {
         StringBuilder sb = new StringBuilder();
         sb.append("public class ").append(className).append(" {\n");
+        indentLevel++; // Entra no nível da classe
         for (Def def : prog.definitions) {
             if (def instanceof Fun) {
                 sb.append(def.accept(this));
             }
         }
+        indentLevel--; // Sai do nível da classe
         sb.append("}\n");
         return sb.toString();
     }
@@ -111,22 +118,28 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     public String visitFun(Fun fun) {
         if (fun.id.equals("main")) {
             StringBuilder sb = new StringBuilder();
-            sb.append("    public static void main(String[] args) {\n");
+            sb.append(indent()).append("public static void main(String[] args) {\n");
+            
             declaredVariables.clear();
             variableTypes.clear();
-            sb.append(fun.body.accept(this));
-            sb.append("    }\n");
+            
+            sb.append(fun.body.accept(this)); // O corpo cuidará da sua própria indentação
+            
+            sb.append(indent()).append("}\n");
             return sb.toString();
         }
         return "";
     }
     
+    // ATUALIZADO: Gerencia a indentação para todos os comandos dentro dele.
     @Override
     public String visitCmdBlock(CmdBlock cmd) {
         StringBuilder sb = new StringBuilder();
+        indentLevel++;
         for (Cmd c : cmd.cmds) {
-            sb.append("        ").append(c.accept(this));
+            sb.append(indent()).append(c.accept(this));
         }
+        indentLevel--;
         return sb.toString();
     }
 
@@ -136,6 +149,29 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return "System.out.println(" + value + ");\n";
     }
     
+    // --- NOVO: Implementação do CmdIf com a nova estratégia de indentação ---
+    @Override
+    public String visitCmdIf(CmdIf cmd) {
+        StringBuilder sb = new StringBuilder();
+        String condition = cmd.condition.accept(this);
+
+        sb.append("if (").append(condition).append(") {\n");
+        
+        // O corpo do 'then' (que pode ser um bloco ou comando único) é visitado.
+        // Se for um bloco, visitCmdBlock cuidará da indentação interna.
+        sb.append(cmd.thenBranch.accept(this));
+        
+        sb.append(indent()).append("}");
+
+        if (cmd.elseBranch != null) {
+            sb.append(" else {\n");
+            sb.append(cmd.elseBranch.accept(this));
+            sb.append(indent()).append("}");
+        }
+        sb.append("\n");
+        return sb.toString();
+    }
+
     private String getJavaType(Type langType) {
         if (langType == null) {
             throw new IllegalStateException("Erro: Tipo da expressão é nulo.");
@@ -189,13 +225,11 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return "(" + exp.exp.accept(this) + ")";
     }
 
-    // --- Métodos não implementados ---
+    // --- Métodos não implementados (mantidos como no seu arquivo) ---
     @Override
     public String visitCmd(Cmd exp) { return null; }
     @Override
     public String visitCmdCall(CmdCall cmd) { return null; }
-    @Override
-    public String visitCmdIf(CmdIf cmd) { return null; }
     @Override
     public String visitCmdIterate(CmdIterate cmd) { return null; }
     @Override
