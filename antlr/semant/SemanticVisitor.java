@@ -472,7 +472,7 @@ public class SemanticVisitor implements Visitor<Type> {
             return Type.ERROR;
         }
 
-        lValueId.expType = varType; // Anota o nó.
+        lValueId.expType = varType; 
         return varType;
     }
 
