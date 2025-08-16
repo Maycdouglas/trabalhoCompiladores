@@ -75,26 +75,57 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         throw new UnsupportedOperationException("Não foi possível inferir o tipo para a expressão: " + exp.getClass().getName());
     }
 
+    // --- NOVO: Implementação da criação de arrays (new) ---
+    @Override
+    public String visitExpNew(ExpNew exp) {
+        if (exp.size != null) { // Verifica se é a criação de um array (ex: new Int[10])
+            String size = exp.size.accept(this);
+            String javaType = getJavaType(exp.type);
+            return "new " + javaType + "[" + size + "]";
+        }
+        // Lógica para 'data' (structs) virá no futuro
+        return "new " + exp.type.baseType + "()";
+    }
 
+    // --- NOVO: Implementação do acesso a índice de array ---
+    @Override
+    public String visitExpIndex(ExpIndex exp) {
+        String target = exp.target.accept(this);
+        String index = exp.index.accept(this);
+        return target + "[" + index + "]";
+    }
+
+    // --- NOVO: Implementação para quando um índice é um LValue (lado esquerdo da atribuição) ---
+    @Override
+    public String visitLValueIndex(LValueIndex lValueIndex) {
+        String target = lValueIndex.target.accept(this);
+        String index = lValueIndex.index.accept(this);
+        return target + "[" + index + "]";
+    }
+
+
+    // --- ATUALIZADO: visitCmdAssign para lidar com LValueIndex ---
     @Override
     public String visitCmdAssign(CmdAssign cmd) {
+        String expression = cmd.expression.accept(this);
+
+        // A chamada a cmd.target.accept(this) agora funcionará corretamente
+        // para LValueId e LValueIndex.
+        String target = cmd.target.accept(this); 
+
         if (cmd.target instanceof LValueId) {
             String varName = ((LValueId) cmd.target).id;
-            String expression = cmd.expression.accept(this);
-
             if (!declaredVariables.contains(varName)) {
                 declaredVariables.add(varName);
-                
                 Type inferredType = inferExpressionType(cmd.expression);
                 variableTypes.put(varName, inferredType);
-
                 String javaType = getJavaType(inferredType);
-                return javaType + " " + varName + " = " + expression + ";\n";
-            } else {
-                return varName + " = " + expression + ";\n";
+                return javaType + " " + target + " = " + expression + ";\n";
             }
         }
-        return "// Atribuição não suportada ainda\n";
+        
+        // Para LValueId (já declarado) e LValueIndex, a lógica é a mesma.
+        return target + " = " + expression + ";\n";
     }
 
     @Override
@@ -377,10 +408,6 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     @Override
     public String visitExpField(ExpField exp) { return null; }
     @Override
-    public String visitExpIndex(ExpIndex exp) { return null; }
-    @Override
-    public String visitExpNew(ExpNew exp) { return null; }
-    @Override
     public String visitExpNull(ExpNull exp) { return null; }
     @Override
     public String visitItCond(ItCond itCond) { return null; }
@@ -388,10 +415,13 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     public String visitLValue(LValue lValue) { return null; }
     @Override
     public String visitLValueField(LValueField lValueField) { return null; }
+    // --- LValue VISITORS CORRIGIDOS ---
+    // Esta é a correção principal. Agora o visitor sabe o que fazer
+    // quando encontra uma variável simples no lado esquerdo de uma atribuição.
     @Override
-    public String visitLValueId(LValueId lValueId) { return null; }
-    @Override
-    public String visitLValueIndex(LValueIndex lValueIndex) { return null; }
+    public String visitLValueId(LValueId lValueId) {
+        return lValueId.id;
+    }
     @Override
     public String visitParam(Param param) { return null; }
     @Override
