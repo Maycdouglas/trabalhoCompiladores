@@ -466,7 +466,6 @@ public class SemanticVisitor implements Visitor<Type> {
     public Type visitLValueId(LValueId lValueId) {
         Type varType = findVar(lValueId.id);
 
-        // Se a variável não for encontrada, é um erro.
         if (varType == null) {
             addError(lValueId.getLine(), "Variável '" + lValueId.id + "' não declarada.");
             lValueId.expType = Type.ERROR;
