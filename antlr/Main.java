@@ -9,6 +9,7 @@ import error.SyntaxErrorListener;
 import interpreter.*;
 import semant.SemanticVisitor;
 import jasmin.JasminGeneratorVisitor;
+import codegen.JavaCodeGeneratorVisitor;
 
 // import codegen.JasminGeneratorVisitor; // Descomentar quando implementar
 
@@ -19,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.Map;
 
 /**
@@ -41,13 +43,15 @@ public class Main {
      */
     public static void main(String[] args) throws IOException {
         if (args.length < 2) {
-            System.err.println("Uso: java Main <diretiva> <caminho_do_arquivo.lan>");
-            System.err.println("Diretivas disponíveis: -syn, -t, -i, -gen");
+            System.err.println("Uso: java Main <diretiva> <caminho_do_arquivo.lan> [diretorio_saida]");
+            System.err.println("Diretivas disponíveis: -syn, -t, -i, -gen, -src");
             System.exit(1);
         }
 
         String directive = args[0];
         String filePath = args[1];
+        // O diretório de saída é opcional; o padrão é o diretório atual.
+        String outputDir = (args.length > 2) ? args[2] : ".";
 
         errorListener = new SyntaxErrorListener();
 
@@ -76,6 +80,10 @@ public class Main {
                 case "-gen":
                     semant();
                     codeGen(filePath);
+                    break;
+                case "-src":
+                    semant();
+                    sourceGen(filePath, outputDir);
                     break;
                 default:
                     System.err.println("Diretiva desconhecida: " + directive);
@@ -174,6 +182,26 @@ public class Main {
         writer.write(jasminCode);
         writer.close();
         System.out.println("Código Jasmin gerado com sucesso em: " + outFileName);
+    }
+
+    /**
+     * @brief Fase 5c: Geração de Código Source-to-Source.
+     * Executa um visitor para gerar código .java a partir da AST.
+     */
+    // ATUALIZAR sourceGen para aceitar o diretório de saída
+    public static void sourceGen(String inputPath, String outputDir) throws IOException {
+        System.out.println("--- Gerando Código Java (Source-to-Source) ---");
+        String baseName = getBaseName(inputPath);
+
+        JavaCodeGeneratorVisitor javaVisitor = new JavaCodeGeneratorVisitor(baseName);
+        String javaCode = ast.accept(javaVisitor);
+
+        // Constrói o caminho de saída completo
+        String outFileName = Paths.get(outputDir, baseName + ".java").toString();
+        try (FileWriter writer = new FileWriter(outFileName)) {
+            writer.write(javaCode);
+        }
+        System.out.println("Código Java gerado com sucesso em: " + outFileName);
     }
 
     /**
