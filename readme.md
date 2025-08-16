@@ -136,12 +136,12 @@ Linux:
 
 1. `java -cp ".:antlr-4.8-complete.jar" Main -i ../Lang/semantica/certo/simple/assoc.lan`
 2. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/sintaxe/certo/printCMD.lan ./build`
-3. `java -cp ".:antlr-4.8-complete.jar" Main -src arquivosTeste/vars.lan ./build`
+3. `java -cp ".:antlr-4.8-complete.jar" Main -src arquivosTeste/expression.lan ./build`
 
 ### COMANDO PARA EXECUTAR SOURCE-TO-SOURCE
 
-1. `javac build/vars.java`
-2. `java -cp build vars`
+1. `javac build/expression.java`
+2. `java -cp build expression`
 
 ### PASSOS PARA GERAR A ÁRVORE EM IMAGEM:
 

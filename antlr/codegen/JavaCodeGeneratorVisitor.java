@@ -4,45 +4,121 @@ package codegen;
 import ast.*;
 import interpreter.Visitor;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class JavaCodeGeneratorVisitor implements Visitor<String> {
 
     private final String className;
-    // CORREÇÃO: A variável foi movida para ser um campo da classe.
     private final Set<String> declaredVariables = new HashSet<>();
+    private final Map<String, Type> variableTypes = new java.util.HashMap<>();
 
     public JavaCodeGeneratorVisitor(String className) {
         this.className = className;
     }
 
-    // Método principal que inicia a geração de código
+    private Type inferExpressionType(Exp exp) {
+        if (exp.expType != null) { // Confia no SemanticVisitor se o tipo já estiver lá
+             return exp.expType;
+        }
+        if (exp instanceof ExpInt) return new Type("Int", 0);
+        if (exp instanceof ExpFloat) return new Type("Float", 0);
+        if (exp instanceof ExpChar) return new Type("Char", 0);
+        if (exp instanceof ExpBool) return new Type("Bool", 0);
+        
+        if (exp instanceof ExpVar var) {
+            if (!variableTypes.containsKey(var.name)) {
+                throw new IllegalStateException("Variável '" + var.name + "' usada antes da atribuição.");
+            }
+            return variableTypes.get(var.name);
+        }
+
+        if (exp instanceof ExpBinOp binOp) {
+            Type leftType = inferExpressionType(binOp.left);
+            Type rightType = inferExpressionType(binOp.right);
+
+            switch (binOp.op) {
+                case "+":
+                case "-":
+                case "*":
+                case "/":
+                case "%":
+                    if (leftType.baseType.equals("Int") && rightType.baseType.equals("Int")) {
+                        return new Type("Int", 0);
+                    }
+                    return new Type("Float", 0);
+                case "<":
+                case "==":
+                case "!=":
+                case "&&":
+                    return new Type("Bool", 0);
+                default:
+                    throw new IllegalStateException("Operador binário desconhecido: " + binOp.op);
+            }
+        }
+        
+        if (exp instanceof ExpParen paren) {
+            return inferExpressionType(paren.exp);
+        }
+
+        throw new UnsupportedOperationException("Não foi possível inferir o tipo para a expressão: " + exp.getClass().getName());
+    }
+
+
+    @Override
+    public String visitCmdAssign(CmdAssign cmd) {
+        if (cmd.target instanceof LValueId) {
+            String varName = ((LValueId) cmd.target).id;
+            String expression = cmd.expression.accept(this);
+
+            if (!declaredVariables.contains(varName)) {
+                declaredVariables.add(varName);
+                
+                Type inferredType = inferExpressionType(cmd.expression);
+                variableTypes.put(varName, inferredType);
+
+                String javaType = getJavaType(inferredType);
+                return javaType + " " + varName + " = " + expression + ";\n";
+            } else {
+                return varName + " = " + expression + ";\n";
+            }
+        }
+        return "// Atribuição não suportada ainda\n";
+    }
+
+    // --- NOVO MÉTODO ADICIONADO ---
+    @Override
+    public String visitExpVar(ExpVar exp) {
+        return exp.name;
+    }
+    
+    // --- Restante do código (sem alterações) ---
+
     @Override
     public String visitProg(Prog prog) {
         StringBuilder sb = new StringBuilder();
         sb.append("public class ").append(className).append(" {\n");
-
         for (Def def : prog.definitions) {
             if (def instanceof Fun) {
                 sb.append(def.accept(this));
             }
         }
-
         sb.append("}\n");
         return sb.toString();
     }
 
     @Override
     public String visitFun(Fun fun) {
-        // Por enquanto, vamos tratar apenas a função 'main'
         if (fun.id.equals("main")) {
             StringBuilder sb = new StringBuilder();
             sb.append("    public static void main(String[] args) {\n");
+            declaredVariables.clear();
+            variableTypes.clear();
             sb.append(fun.body.accept(this));
             sb.append("    }\n");
             return sb.toString();
         }
-        return ""; // Ignorar outras funções por enquanto
+        return "";
     }
     
     @Override
@@ -59,40 +135,12 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         String value = cmd.value.accept(this);
         return "System.out.println(" + value + ");\n";
     }
-
-     // --- NOVO: Implementação da Atribuição (CmdAssign) ---
-    @Override
-    public String visitCmdAssign(CmdAssign cmd) {
-        // Só trataremos LValueId por enquanto (atribuição a variáveis simples como 'x')
-        if (cmd.target instanceof LValueId) {
-            String varName = ((LValueId) cmd.target).id;
-            String expression = cmd.expression.accept(this);
-
-            // Verifica se a variável já foi declarada
-            if (!declaredVariables.contains(varName)) {
-                // Se não foi, declara-a. O tipo é pego da expressão à direita.
-                declaredVariables.add(varName);
-                String javaType = getJavaType(cmd.expression.expType);
-                return javaType + " " + varName + " = " + expression + ";\n";
-            } else {
-                // Se já foi, apenas atribui o novo valor.
-                return varName + " = " + expression + ";\n";
-            }
-        }
-        return "// Atribuição não suportada ainda\n";
-    }
-
-    // --- NOVO: Implementação de Variáveis em Expressões ---
-    @Override
-    public String visitExpVar(ExpVar exp) {
-        // Quando uma variável é usada, simplesmente retornamos seu nome.
-        return exp.name;
-    }
     
-    // --- NOVO: Helper para mapear tipos de 'lang' para Java ---
     private String getJavaType(Type langType) {
+        if (langType == null) {
+            throw new IllegalStateException("Erro: Tipo da expressão é nulo.");
+        }
         if (langType.arrayDim > 0) {
-            // Lógica para arrays (será implementada depois)
             return getJavaType(new Type(langType.baseType, 0)) + "[]".repeat(langType.arrayDim);
         }
         switch (langType.baseType) {
@@ -103,23 +151,24 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             case "Bool":
                 return "boolean";
             case "Char":
-                // Em Java, literais de string são com aspas duplas. Vamos usar String por simplicidade.
                 return "String"; 
             default:
-                // Para tipos de dados definidos pelo usuário (futuramente)
                 return langType.baseType;
         }
     }
     
-    // Expressões simples
     @Override
     public String visitExpInt(ExpInt exp) {
+        return String.valueOf(exp.value);
+    }
+    
+    @Override
+    public String visitExpFloat(ExpFloat exp) {
         return String.valueOf(exp.value);
     }
 
     @Override
     public String visitExpChar(ExpChar exp) {
-        // Para consistência, trataremos todos os literais de texto como String em Java
         return "\"" + exp.value + "\"";
     }
     
@@ -127,10 +176,20 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     public String visitExpBool(ExpBool exp) {
         return String.valueOf(exp.value);
     }
-    
-    // --- Métodos não implementados (ainda) ---
-    // Deixe-os retornando `null` ou uma string vazia por enquanto.
 
+    @Override
+    public String visitExpBinOp(ExpBinOp exp) {
+        String left = exp.left.accept(this);
+        String right = exp.right.accept(this);
+        return "(" + left + " " + exp.op + " " + right + ")";
+    }
+
+    @Override
+    public String visitExpParen(ExpParen exp) {
+        return "(" + exp.exp.accept(this) + ")";
+    }
+
+    // --- Métodos não implementados ---
     @Override
     public String visitCmd(Cmd exp) { return null; }
     @Override
@@ -156,23 +215,17 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     @Override
     public String visitExp(Exp exp) { return null; }
     @Override
-    public String visitExpBinOp(ExpBinOp exp) { return null; }
-    @Override
     public String visitExpCall(ExpCall exp) { return null; }
     @Override
     public String visitExpCallIndexed(ExpCallIndexed exp) { return null; }
     @Override
     public String visitExpField(ExpField exp) { return null; }
     @Override
-    public String visitExpFloat(ExpFloat exp) { return null; }
-    @Override
     public String visitExpIndex(ExpIndex exp) { return null; }
     @Override
     public String visitExpNew(ExpNew exp) { return null; }
     @Override
     public String visitExpNull(ExpNull exp) { return null; }
-    @Override
-    public String visitExpParen(ExpParen exp) { return null; }
     @Override
     public String visitExpUnaryOp(ExpUnaryOp exp) { return null; }
     @Override
