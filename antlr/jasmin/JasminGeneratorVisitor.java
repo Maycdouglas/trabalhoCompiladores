@@ -873,37 +873,47 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         exp.call.accept(this);
 
         Fun fun = theta.get(exp.call.id);
+        if (fun == null) {
+            throw new RuntimeException("Função '" + exp.call.id + "' não encontrada.");
+        }
+
         List<Type> returnTypes = fun.retTypes;
-        int numReturnValues = returnTypes.size();
-        int targetIndex = ((ExpInt) exp.index).value;
+        int targetIndex = 0;
 
-        List<Integer> tempVarIndices = new ArrayList<>();
-        for (int i = numReturnValues - 1; i >= 0; i--) {
-            Type returnType = returnTypes.get(i);
+        if (exp.index instanceof ExpInt) {
+            targetIndex = ((ExpInt) exp.index).value;
+        }
 
-            int tempVarIndex = localIdx;
-            localIdx += returnType.isTwoWords() ? 2 : 1;
-
-            tempVarIndices.add(0, tempVarIndex);
-
-            if (returnType.isFloat()) {
-                emit("fstore " + tempVarIndex);
-            } else if (returnType.isReference()) {
-                emit("astore " + tempVarIndex);
-            } else {
-                emit("istore " + tempVarIndex);
-            }
+        if (targetIndex < 0 || targetIndex >= returnTypes.size()) {
+            throw new RuntimeException("Índice de retorno inválido: " + targetIndex);
         }
 
         Type targetType = returnTypes.get(targetIndex);
-        int targetVarIndex = tempVarIndices.get(targetIndex);
 
-        if (targetType.isFloat()) {
-            emit("fload " + targetVarIndex);
-        } else if (targetType.isReference()) {
-            emit("aload " + targetVarIndex);
-        } else {
-            emit("iload " + targetVarIndex);
+        if (returnTypes.size() > 1) {
+            List<Integer> tempVarIndices = new ArrayList<>();
+            for (int i = 0; i < returnTypes.size(); i++) {
+                Type returnType = returnTypes.get(i);
+                int tempVarIndex = nextLocalIndex++;
+                tempVarIndices.add(tempVarIndex);
+
+                if (returnType.isFloat()) {
+                    emit("fstore " + tempVarIndex);
+                } else if (returnType.isReference()) {
+                    emit("astore " + tempVarIndex);
+                } else {
+                    emit("istore " + tempVarIndex);
+                }
+            }
+
+            int desiredVarIndex = tempVarIndices.get(targetIndex);
+            if (targetType.isFloat()) {
+                emit("fload " + desiredVarIndex);
+            } else if (targetType.isReference()) {
+                emit("aload " + desiredVarIndex);
+            } else {
+                emit("iload " + desiredVarIndex);
+            }
         }
 
         return null;
