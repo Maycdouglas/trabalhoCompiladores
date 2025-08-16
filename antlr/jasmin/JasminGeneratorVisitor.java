@@ -11,7 +11,9 @@ package jasmin;
 import ast.*;
 import interpreter.Visitor;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,6 +25,7 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
     private String className;
     private StringBuilder code = new StringBuilder();
     private int labelCounter = 0;
+    private int localIdx = 0;
 
     // Mapeia nomes de variáveis para seus índices na JVM (locais)
     private Map<String, Integer> locals = new HashMap<>();
@@ -186,7 +189,7 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
             emit("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V");
 
             emitLabel(endLabel);
-            
+
             return null;
         } else {
             descriptor = "Ljava/lang/Object;";
@@ -305,8 +308,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                 return "L" + type.baseType + ";"; // Descritor para tipos de objeto/data
         }
     }
-
-    // Em jasmin/JasminGeneratorVisitor.java
 
     @Override
     public Void visitExpVar(ExpVar expVar) {
@@ -618,14 +619,14 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
             return null;
         }
 
-        // Pega o primeiro valor de retorno
         Exp returnValue = cmd.values.get(0);
         returnValue.accept(this);
 
         Type returnType = returnValue.expType;
-        if (returnType.arrayDim > 0 || delta.containsKey(returnType.baseType)) {
+
+        if (returnType.isReference() || returnType.isNull()) {
             emit("areturn");
-        } else if (returnType.baseType.equals("Float")) {
+        } else if (returnType.isFloat()) {
             emit("freturn");
         } else {
             emit("ireturn");
@@ -908,28 +909,41 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitExpCallIndexed(ExpCallIndexed exp) {
-        Fun funDef = theta.get(exp.call.id);
-        if (funDef == null) {
-            throw new RuntimeException("Erro do gerador: função '" + exp.call.id + "' não encontrada.");
+        exp.call.accept(this);
+
+        Fun fun = theta.get(exp.call.id);
+        List<Type> returnTypes = fun.retTypes;
+        int numReturnValues = returnTypes.size();
+        int targetIndex = ((ExpInt) exp.index).value;
+
+        List<Integer> tempVarIndices = new ArrayList<>();
+        for (int i = numReturnValues - 1; i >= 0; i--) {
+            Type returnType = returnTypes.get(i);
+
+            int tempVarIndex = localIdx;
+            localIdx += returnType.isTwoWords() ? 2 : 1;
+
+            tempVarIndices.add(0, tempVarIndex);
+
+            if (returnType.isFloat()) {
+                emit("fstore " + tempVarIndex);
+            } else if (returnType.isReference()) {
+                emit("astore " + tempVarIndex);
+            } else { // Para Int, Bool, Char
+                emit("istore " + tempVarIndex);
+            }
         }
 
-        for (Exp arg : exp.call.args) {
-            arg.accept(this);
-        }
+        Type targetType = returnTypes.get(targetIndex);
+        int targetVarIndex = tempVarIndices.get(targetIndex);
 
-        StringBuilder signature = new StringBuilder();
-        signature.append(className).append("/").append(funDef.id).append("(");
-        for (Param p : funDef.params) {
-            signature.append(getJasminType(p.type));
+        if (targetType.isFloat()) {
+            emit("fload " + targetVarIndex);
+        } else if (targetType.isReference()) {
+            emit("aload " + targetVarIndex);
+        } else { // Para Int, Bool, Char
+            emit("iload " + targetVarIndex);
         }
-        signature.append(")");
-        if (funDef.retTypes.isEmpty()) {
-            signature.append("V");
-        } else {
-            signature.append(getJasminType(funDef.retTypes.get(0)));
-        }
-
-        emit("invokestatic " + signature.toString());
 
         return null;
     }
@@ -946,17 +960,12 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    // Em JasminGeneratorVisitor.java
-
     @Override
     public Void visitExpIndex(ExpIndex exp) {
-        // 1. Carrega a referência do array/sub-array na pilha
         exp.target.accept(this);
-        // 2. Carrega o valor do índice na pilha
         exp.index.accept(this);
 
-        // 3. Determina a instrução de load correta
-        Type resultType = exp.expType; // Tipo do resultado da operação e.g., Char[] ou Char
+        Type resultType = exp.expType;
 
         if (resultType.arrayDim > 0 || delta.containsKey(resultType.baseType)) {
             emit("aaload");
@@ -1006,16 +1015,11 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                         break;
                 }
             }
-        }
-        // Caso 2: Criação de um 'data' (ex: new Ponto)
-        else {
+        } else {
             String className = exp.type.baseType;
 
-            // 1. Aloca memória para o objeto
             emit("new " + className);
-            // 2. Duplica a referência na pilha (uma para o construtor, uma para o retorno)
             emit("dup");
-            // 3. Chama o construtor padrão <init>()V
             emit("invokespecial " + className + "/<init>()V");
         }
         return null;
@@ -1023,7 +1027,7 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitExpNull(ExpNull exp) {
-        emit("aconst_null"); // Carrega uma referência nula na pilha
+        emit("aconst_null");
         return null;
     }
 
@@ -1142,10 +1146,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
     @Override
     public Void visitParam(Param param) {
         return null;
-    } // Tratado em visitFun
+    }
 
     @Override
     public Void visitType(Type type) {
         return null;
-    } // Geralmente não gera código diretamente
+    }
 }

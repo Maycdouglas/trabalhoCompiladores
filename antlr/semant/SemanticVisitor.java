@@ -245,40 +245,39 @@ public class SemanticVisitor implements Visitor<Type> {
     }
 
     @Override
-    public Type visitCmdReturn(CmdReturn cmdReturn) {
+    public Type visitCmdReturn(CmdReturn cmd) {
+        // Garante que o 'return' está dentro de uma função.
         if (currentFunction == null) {
-            throw new RuntimeException("Comando 'return' encontrado fora de uma função.");
+            addError(cmd.getLine(), "Comando 'return' só pode ser usado dentro de uma função.");
+            return Type.ERROR;
         }
 
-        if (cmdReturn.values.size() != currentFunction.retTypes.size()) {
-            throw new RuntimeException("A função '" + currentFunction.id + "' esperava " +
-                    currentFunction.retTypes.size() + " valores de retorno, mas recebeu " +
-                    cmdReturn.values.size() + ".");
+        List<Type> declaredReturnTypes = currentFunction.retTypes;
+        List<Exp> returnedExpressions = cmd.values; // Usa o nome correto do campo: 'values'
+
+        // --- PONTO CRÍTICO 1: Validar a CONTAGEM de retornos ---
+        if (declaredReturnTypes.size() != returnedExpressions.size()) {
+            addError(cmd.getLine(), "A função '" + currentFunction.id + "' espera " + declaredReturnTypes.size() +
+                    " valores de retorno, mas " + returnedExpressions.size() + " foram fornecidos.");
+            // Mesmo com o erro, visita as expressões para encontrar outros possíveis erros.
+            for (Exp exp : returnedExpressions) {
+                exp.accept(this);
+            }
+            return Type.ERROR;
         }
 
-        for (int i = 0; i < cmdReturn.values.size(); i++) {
-            Type returnedType = cmdReturn.values.get(i).accept(this);
-            Type expectedType = currentFunction.retTypes.get(i);
+        // --- PONTO CRÍTICO 2: Validar os TIPOS de cada retorno ---
+        for (int i = 0; i < declaredReturnTypes.size(); i++) {
+            Type declaredType = declaredReturnTypes.get(i);
+            Type actualType = returnedExpressions.get(i).accept(this);
 
-            boolean compatible = false;
-
-            if (returnedType.baseType.equals(expectedType.baseType) && returnedType.arrayDim == expectedType.arrayDim) {
-                compatible = true;
-            }
-
-            if (returnedType.baseType.equals("Null")) {
-                if (delta.containsKey(expectedType.baseType) || expectedType.arrayDim > 0) {
-                    compatible = true;
-                }
-            }
-
-            if (!compatible) {
-                throw new RuntimeException(
-                        "Tipo de retorno inválido na posição " + i + " para a função '" + currentFunction.id +
-                                "'. Esperava " + expectedType.baseType + " mas recebeu " + returnedType.baseType + ".");
+            if (!actualType.isError() && !declaredType.isEquivalent(actualType)) {
+                addError(returnedExpressions.get(i).getLine(),
+                        "Tipo de retorno incompatível na posição " + i + ". Esperado '" + declaredType +
+                                "', mas encontrado '" + actualType + "'.");
             }
         }
-        return null;
+        return Type.VOID; // O comando 'return' em si não tem um tipo.
     }
 
     @Override
@@ -556,13 +555,18 @@ public class SemanticVisitor implements Visitor<Type> {
             throw new RuntimeException("Chamada de função com múltiplos retornos '" + exp.id + "' deve ser indexada.");
         }
         if (funDef.retTypes.isEmpty()) {
-            throw new RuntimeException(
-                    "Função '" + exp.id + "' não possui valor de retorno para ser usada em uma expressão.");
+            addError(exp.line,
+                    "Função '" + exp.id + "' não possui valor de retorno e não pode ser usada em uma expressão.");
+            exp.expType = Type.ERROR;
+        } else if (funDef.retTypes.size() == 1) {
+            exp.expType = funDef.retTypes.get(0);
+        } else {
+            // CORREÇÃO: Atribui um tipo não-nulo para o caso de múltiplos retornos.
+            // O nó representa um conjunto de valores, não um único tipo,
+            // mas o campo expType não pode ser nulo. Usamos VOID como placeholder.
+            exp.expType = Type.VOID;
         }
-
-        Type returnType = funDef.retTypes.get(0);
-        exp.expType = returnType;
-        return returnType;
+        return exp.expType;
     }
 
     @Override

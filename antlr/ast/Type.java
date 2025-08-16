@@ -13,6 +13,7 @@ public class Type implements DotPrintable, ASTNode {
     public final int arrayDim; // para representar [] (quantos níveis)
     public final int line;
     public static final Type ERROR = new Type("<<error>>", 0, -1);
+    public static final Type VOID = new Type("Void", 0, -1);
 
     public Type(String baseType, int arrayDim, int line) {
         this.baseType = baseType;
@@ -27,6 +28,10 @@ public class Type implements DotPrintable, ASTNode {
     @Override
     public int getLine() {
         return this.line;
+    }
+
+    public boolean isTwoWords() {
+        return isFloat();
     }
 
     public boolean isNumeric() {
@@ -55,8 +60,13 @@ public class Type implements DotPrintable, ASTNode {
 
     public boolean isEquivalent(Type other) {
         if (this.isError() || other.isError()) {
-            return true; // Evita erros em cascata
+            return true;
         }
+
+        if (this.isReference() && other.isNull()) {
+            return true;
+        }
+
         return this.baseType.equals(other.baseType) && this.arrayDim == other.arrayDim;
     }
 
