@@ -132,6 +132,10 @@ Linux:
 1. `javac -cp ".:antlr-4.8-complete.jar" parser/*.java ast/*.java error/*.java Main.java`
 2. `java -cp ".:antlr-4.8-complete.jar" Main attr_OR_SUGAR.lan`
 
+### COMANDO COM O MAKEFILE
+
+1. `java -cp ".:antlr-4.8-complete.jar" Main -i ../Lang/semantica/certo/simple/assoc.lan`
+
 ### PASSOS PARA GERAR A ÁRVORE EM IMAGEM:
 
 - Download do GRAPHVIZ : `https://graphviz.org/download/`
