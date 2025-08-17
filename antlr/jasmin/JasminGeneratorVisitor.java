@@ -74,6 +74,12 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return "L" + (labelCounter++);
     }
 
+    /**
+     * @brief Visita o nó raiz do programa (Prog) para iniciar a geração de código.
+     *        Gera o cabeçalho da classe, o construtor padrão e, em seguida,
+     *        visita todas as definições de nível superior (funções e tipos de
+     *        dados).
+     */
     @Override
     public Void visitProg(Prog prog) {
         emitHeader(".class public " + className);
@@ -94,6 +100,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma definição de função (Fun) para gerar o código.
+     *        Define o tamanho da pilha necessária para a função
+     */
     @Override
     public Void visitFun(Fun fun) {
         locals.clear();
@@ -152,6 +162,11 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita o comando de impressão gerando o código Jasmin correspondente.
+     *        Para isso verifica qual o tipo do que está sendo impresso.
+     */
+
     @Override
     public Void visitCmdPrint(CmdPrint cmd) {
         if (cmd.value instanceof ExpChar && ((ExpChar) cmd.value).value == '\n') {
@@ -199,12 +214,22 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma expressão de literal inteiro (ExpInt) e gera a instrução
+     *        'ldc' para carregar o valor constante na pilha.
+     */
     @Override
     public Void visitExpInt(ExpInt exp) {
         emit("ldc " + exp.value);
         return null;
     }
 
+    /**
+     * @brief Visita comando de atribuição (CmdAssign) e gera o código Jasmin
+     *        correspondente.
+     *        Esse comando tem alguns comportamentos diferentes de acordo com o tipo
+     *        de variável que está sendo trabalhada
+     */
     @Override
     public Void visitCmdAssign(CmdAssign cmd) {
         if (cmd.target instanceof LValueId) {
@@ -269,6 +294,9 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Converte um tipo da linguagem para o formato Jasmin correspondente.
+     */
     private String getJasminType(Type type) {
         if (type.arrayDim > 0) {
             return "[".repeat(type.arrayDim) + getJasminType(new Type(type.baseType, 0));
@@ -287,6 +315,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         }
     }
 
+    /**
+     * @brief Visita uma expressão de variável (ExpVar) e gera o código Jasmin
+     *        correspondente de acordo com o tipo da variável.
+     */
     @Override
     public Void visitExpVar(ExpVar expVar) {
         if (locals.containsKey(expVar.name)) {
@@ -320,6 +352,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita um bloco de comandos (CmdBlock) e gera o código Jasmin
+     *        correspondente.
+     */
     @Override
     public Void visitCmdBlock(CmdBlock cmd) {
         for (Cmd c : cmd.cmds) {
@@ -328,6 +364,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita a chamada de função (CmdCall) e gera o código Jasmin
+     *        correspondente.
+     */
     @Override
     public Void visitCmdCall(CmdCall cmd) {
         Fun funDef = theta.get(cmd.id);
@@ -370,6 +410,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma expressão condicional (ExpCond) e gera o código Jasmin
+     *        correspondente.
+     */
     @Override
     public Void visitCmdIf(CmdIf cmd) {
         String elseLabel = newLabel();
@@ -392,6 +436,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma expressão de iteração (CmdIterate) e gera o código Jasmin
+     *        correspondente.
+     */
     @Override
     public Void visitCmdIterate(CmdIterate cmd) {
         if (cmd.condition instanceof ItCondExpr) {
@@ -518,6 +566,9 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * Visita comando de leitura (CmdRead) e gera código Jasmin correspondente
+     */
     @Override
     public Void visitCmdRead(CmdRead cmd) {
         if (cmd.lvalue instanceof LValueId) {
@@ -579,6 +630,9 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita comando de retorno (CmdReturn) e gera o código Jasmin
+     */
     @Override
     public Void visitCmdReturn(CmdReturn cmd) {
         if (cmd.values.isEmpty()) {
@@ -601,6 +655,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma definição de tipo de dados (Data) e gera o código Jasmin
+     * @hidden Essa funcionanlidade não funciona corretamente
+     */
     @Override
     public Void visitData(Data data) {
         data.accept(this);
@@ -645,6 +703,11 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma definição de tipo de dados (Data) e gera o código Jasmin
+     *        correspondente.
+     * @hidden Essa funcionalidade não funciona corretamente
+     */
     @Override
     public Void visitDataRegular(DataRegular data) {
         emitHeader("\n; --- Definição da classe para o tipo de dados: " + data.name + " ---");
@@ -687,6 +750,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma expressão de campo (ExpField) e gera o código Jasmin
+     *        correspondente.
+     */
     @Override
     public Void visitExpField(ExpField exp) {
         exp.target.accept(this);
@@ -727,6 +794,9 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Função auxiliar para lidar com expressões booleanas
+     */
     private Void handleBooleanShortCircuit(ExpBinOp exp) {
         String endLabel = newLabel();
 
@@ -747,6 +817,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita expressões binárias (como somas, subtrações e comparações) e
+     *        gera o código Jasmin correspondente.
+     */
     @Override
     public Void visitExpBinOp(ExpBinOp exp) {
 
@@ -833,6 +907,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma expressão booleana (ExpBool) e gera o código Jasmin
+     *        correspondente.
+     */
     @Override
     public Void visitExpBool(ExpBool exp) {
         if (exp.value) {
@@ -843,6 +921,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma chamada de função (ExpCall) e gera o código Jasmin
+     *        correspondente.
+     */
     @Override
     public Void visitExpCall(ExpCall exp) {
         Fun funDef = theta.get(exp.id);
@@ -872,6 +954,11 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita chamada indexada de funções e gera o código Jasmin
+     *        correspondente.
+     * @hiden Essa funcionalidade não funciona direito
+     */
     @Override
     public Void visitExpCallIndexed(ExpCallIndexed exp) {
         exp.call.accept(this);
@@ -923,18 +1010,29 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma expressão de caractere (ExpChar) e gera o código Jasmin
+     *        correspondente.
+     */
     @Override
     public Void visitExpChar(ExpChar exp) {
         emit("ldc " + (int) exp.value);
         return null;
     }
 
+    /**
+     * @brief Visita uma exmpressão de float (ExpFloat) e gera o código Jasmin
+     *        correspondente
+     */
     @Override
     public Void visitExpFloat(ExpFloat exp) {
         emit("ldc " + exp.value);
         return null;
     }
 
+    /**
+     * @brief Visita expressão e gera o código Jasmin correspondente.
+     */
     @Override
     public Void visitExpIndex(ExpIndex exp) {
         exp.target.accept(this);
@@ -963,6 +1061,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma expressão de nova alocação (ExpNew) e gera o código Jasmin
+     *        correspondente.
+     */
     @Override
     public Void visitExpNew(ExpNew exp) {
         if (exp.size != null) {
@@ -1012,6 +1114,10 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita expressões unárias como negação e gera o código Jasmin
+     *        correspondente.
+     */
     @Override
     public Void visitExpUnaryOp(ExpUnaryOp exp) {
         exp.exp.accept(this);
@@ -1064,6 +1170,9 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
+    /**
+     * @brief Visita uma expressão de campo (LValueField) e gera o código Jasmin correspondente.
+     */
     @Override
     public Void visitLValueField(LValueField lValueField) {
         lValueField.target.accept(this);
