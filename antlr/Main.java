@@ -49,10 +49,6 @@ public class Main {
         String directive = args[0];
         String filePath = args[1];
 
-        String className = new File(args[1]).getName().replaceFirst("[.][^.]+$", "");
-
-        className = JasminGeneratorVisitor.getSafeClassName(className);
-
         errorListener = new SyntaxErrorListener();
 
         try {
@@ -77,7 +73,7 @@ public class Main {
                     break;
                 case "-gen":
                     semant();
-                    codeGen(className);
+                    codeGen(filePath);
                     break;
                 case "-dot":
                     printParseTreeDot(tree, parser, "" + getBaseName(filePath) + ".dot");

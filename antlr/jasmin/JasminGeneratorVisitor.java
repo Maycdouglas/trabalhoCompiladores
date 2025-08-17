@@ -12,12 +12,9 @@ import ast.*;
 import interpreter.Visitor;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * @brief Visitor responsável por percorrer a AST e gerar código de montagem
@@ -25,20 +22,10 @@ import java.util.Set;
  */
 public class JasminGeneratorVisitor implements Visitor<Void> {
 
-    private static final Set<String> JAVA_RESERVED_WORDS = new HashSet<>(Arrays.asList(
-            "abstract", "continue", "for", "new", "switch", "assert", "default",
-            "goto", "package", "synchronized", "boolean", "do", "if", "private",
-            "this", "break", "double", "implements", "protected", "throw", "byte",
-            "else", "import", "public", "throws", "case", "enum", "instanceof",
-            "return", "transient", "catch", "extends", "int", "short", "try",
-            "char", "final", "interface", "static", "void", "class", "finally",
-            "long", "strictfp", "volatile", "const", "float", "native", "super", "while"));
-
     private String className;
     private StringBuilder code = new StringBuilder();
     private int labelCounter = 0;
     private int localIdx = 0;
-    private Fun currentFunction = null;
 
     private Map<String, Integer> locals = new HashMap<>();
     private int nextLocalIndex = 0;
@@ -57,13 +44,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
      */
     public String getCode() {
         return code.toString();
-    }
-
-    public static String getSafeClassName(String originalName) {
-        if (JAVA_RESERVED_WORDS.contains(originalName)) {
-            return originalName + "Class";
-        }
-        return originalName;
     }
 
     /**
@@ -116,8 +96,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitFun(Fun fun) {
-        this.currentFunction = fun;
-
         locals.clear();
         nextLocalIndex = 0;
 
@@ -138,8 +116,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
         if (fun.retTypes.isEmpty()) {
             signature.append("V");
-        } else if (fun.retTypes.size() > 1) {
-            signature.append("[Ljava/lang/Object;");
         } else {
             signature.append(getJasminType(fun.retTypes.get(0)));
         }
@@ -173,8 +149,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         }
 
         emitHeader(".end method");
-
-        this.currentFunction = null;
         return null;
     }
 
@@ -607,44 +581,22 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitCmdReturn(CmdReturn cmd) {
-        if (currentFunction.retTypes.size() > 1) {
-            emit("    bipush " + cmd.values.size());
-            emit("    anewarray java/lang/Object");
+        if (cmd.values.isEmpty()) {
+            emit("return");
+            return null;
+        }
 
-            for (int i = 0; i < cmd.values.size(); i++) {
-                emit("    dup");
-                emit("    bipush " + i);
+        Exp returnValue = cmd.values.get(0);
+        returnValue.accept(this);
 
-                Exp valueExp = cmd.values.get(i);
-                valueExp.accept(this);
+        Type returnType = returnValue.expType;
 
-                Type valueType = valueExp.expType;
-                if (valueType.baseType.equals("Int")) {
-                    emit("    invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;");
-                } else if (valueType.baseType.equals("Char")) {
-                    emit("    invokestatic java/lang/Character/valueOf(C)Ljava/lang/Character;");
-                } else if (valueType.baseType.equals("Bool")) {
-                    emit("    invokestatic java/lang/Boolean/valueOf(Z)Ljava/lang/Boolean;");
-                } else if (valueType.baseType.equals("Float")) {
-                    emit("    invokestatic java/lang/Float/valueOf(F)Ljava/lang/Float;");
-                }
-
-                emit("    aastore");
-            }
-            emit("    areturn");
-        } else if (!currentFunction.retTypes.isEmpty()) {
-            cmd.values.get(0).accept(this);
-            Type returnType = currentFunction.retTypes.get(0);
-            if (returnType.baseType.equals("Int") || returnType.baseType.equals("Char")
-                    || returnType.baseType.equals("Bool")) {
-                emit("    ireturn");
-            } else if (returnType.baseType.equals("Float")) {
-                emit("    freturn");
-            } else {
-                emit("    areturn");
-            }
+        if (returnType.isReference() || returnType.isNull()) {
+            emit("areturn");
+        } else if (returnType.isFloat()) {
+            emit("freturn");
         } else {
-            emit("    return");
+            emit("ireturn");
         }
         return null;
     }
@@ -893,31 +845,29 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
     @Override
     public Void visitExpCall(ExpCall exp) {
+        Fun funDef = theta.get(exp.id);
+        if (funDef == null) {
+            throw new RuntimeException("Erro do gerador: função '" + exp.id + "' não encontrada.");
+        }
+
         for (Exp arg : exp.args) {
             arg.accept(this);
         }
 
-        Fun funDef = theta.get(exp.id);
-        if (funDef == null) {
-            throw new RuntimeException("Função não definida chamada: " + exp.id);
-        }
-
         StringBuilder signature = new StringBuilder();
-        signature.append("(");
+        signature.append(className).append("/").append(funDef.id).append("(");
         for (Param p : funDef.params) {
             signature.append(getJasminType(p.type));
         }
         signature.append(")");
 
         if (funDef.retTypes.isEmpty()) {
-            signature.append("V");
-        } else if (funDef.retTypes.size() > 1) {
-            signature.append("[Ljava/lang/Object;");
+            throw new RuntimeException("Função '" + exp.id + "' sem valor de retorno usada em uma expressão.");
         } else {
             signature.append(getJasminType(funDef.retTypes.get(0)));
         }
 
-        emit("    invokestatic " + className + "/" + exp.id + signature.toString());
+        emit("invokestatic " + signature.toString());
 
         return null;
     }
@@ -925,25 +875,51 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
     @Override
     public Void visitExpCallIndexed(ExpCallIndexed exp) {
         exp.call.accept(this);
-        exp.index.accept(this);
-        emit("    aaload");
 
-        Type returnType = exp.expType;
-        if (returnType.baseType.equals("Int")) {
-            emit("    checkcast java/lang/Integer");
-            emit("    invokevirtual java/lang/Integer/intValue()I");
-        } else if (returnType.baseType.equals("Char")) {
-            emit("    checkcast java/lang/Character");
-            emit("    invokevirtual java/lang/Character/charValue()C");
-        } else if (returnType.baseType.equals("Bool")) {
-            emit("    checkcast java/lang/Boolean");
-            emit("    invokevirtual java/lang/Boolean/booleanValue()Z");
-        } else if (returnType.baseType.equals("Float")) {
-            emit("    checkcast java/lang/Float");
-            emit("    invokevirtual java/lang/Float/floatValue()F");
-        } else {
-            emit("    checkcast " + getJasminType(returnType).replace(";", ""));
+        Fun fun = theta.get(exp.call.id);
+        if (fun == null) {
+            throw new RuntimeException("Função '" + exp.call.id + "' não encontrada.");
         }
+
+        List<Type> returnTypes = fun.retTypes;
+        int targetIndex = 0;
+
+        if (exp.index instanceof ExpInt) {
+            targetIndex = ((ExpInt) exp.index).value;
+        }
+
+        if (targetIndex < 0 || targetIndex >= returnTypes.size()) {
+            throw new RuntimeException("Índice de retorno inválido: " + targetIndex);
+        }
+
+        Type targetType = returnTypes.get(targetIndex);
+
+        if (returnTypes.size() > 1) {
+            List<Integer> tempVarIndices = new ArrayList<>();
+            for (int i = 0; i < returnTypes.size(); i++) {
+                Type returnType = returnTypes.get(i);
+                int tempVarIndex = nextLocalIndex++;
+                tempVarIndices.add(tempVarIndex);
+
+                if (returnType.isFloat()) {
+                    emit("fstore " + tempVarIndex);
+                } else if (returnType.isReference()) {
+                    emit("astore " + tempVarIndex);
+                } else {
+                    emit("istore " + tempVarIndex);
+                }
+            }
+
+            int desiredVarIndex = tempVarIndices.get(targetIndex);
+            if (targetType.isFloat()) {
+                emit("fload " + desiredVarIndex);
+            } else if (targetType.isReference()) {
+                emit("aload " + desiredVarIndex);
+            } else {
+                emit("iload " + desiredVarIndex);
+            }
+        }
+
         return null;
     }
 
