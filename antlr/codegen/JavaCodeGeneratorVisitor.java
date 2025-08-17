@@ -18,6 +18,8 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     private Fun currentFunction = null; 
     // --- NOVO: Rastrear todas as funções para a geração das classes de retorno ---
     private Map<String, Fun> allFunctions = new java.util.HashMap<>();
+    // --- NOVO: Mapa para guardar as definições de 'data' ---
+    private Map<String, Data> allDataTypes = new java.util.HashMap<>();
     
     // --- NOVO: Variável para controlar a indentação ---
     private int indentLevel = 0;
@@ -34,50 +36,79 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return "    ".repeat(indentLevel);
     }
 
+    // --- ATUALIZADO: inferExpressionType para lidar com 'data' ---
     private Type inferExpressionType(Exp exp) {
-        if (exp.expType != null) { // Confia no SemanticVisitor se o tipo já estiver lá
-             return exp.expType;
-        }
+        if (exp.expType != null) { return exp.expType; }
         if (exp instanceof ExpInt) return new Type("Int", 0);
         if (exp instanceof ExpFloat) return new Type("Float", 0);
         if (exp instanceof ExpChar) return new Type("Char", 0);
         if (exp instanceof ExpBool) return new Type("Bool", 0);
+        if (exp instanceof ExpNull) return new Type("Null", 0); // Tipo para 'null'
         
         if (exp instanceof ExpVar var) {
-            if (!variableTypes.containsKey(var.name)) {
-                throw new IllegalStateException("Variável '" + var.name + "' usada antes da atribuição.");
-            }
+            if (!variableTypes.containsKey(var.name)) { throw new IllegalStateException("Variável '" + var.name + "' usada antes da atribuição."); }
             return variableTypes.get(var.name);
         }
-
         if (exp instanceof ExpBinOp binOp) {
             Type leftType = inferExpressionType(binOp.left);
             Type rightType = inferExpressionType(binOp.right);
-
             switch (binOp.op) {
-                case "+":
-                case "-":
-                case "*":
-                case "/":
-                case "%":
-                    if (leftType.baseType.equals("Int") && rightType.baseType.equals("Int")) {
-                        return new Type("Int", 0);
-                    }
+                case "+": case "-": case "*": case "/": case "%":
+                    if (leftType.baseType.equals("Int") && rightType.baseType.equals("Int")) { return new Type("Int", 0); }
                     return new Type("Float", 0);
-                case "<":
-                case "==":
-                case "!=":
-                case "&&":
+                case "<": case "==": case "!=": case "&&":
                     return new Type("Bool", 0);
                 default:
                     throw new IllegalStateException("Operador binário desconhecido: " + binOp.op);
             }
         }
-        
-        if (exp instanceof ExpParen paren) {
-            return inferExpressionType(paren.exp);
+        if (exp instanceof ExpParen paren) { return inferExpressionType(paren.exp); }
+        if (exp instanceof ExpUnaryOp unaryOp) {
+            Type operandType = inferExpressionType(unaryOp.exp);
+            if (unaryOp.op.equals("!")) { return new Type("Bool", 0); }
+            if (unaryOp.op.equals("-")) { return operandType; }
         }
-
+        if (exp instanceof ExpNew newExp) {
+            if (newExp.size != null) { return new Type(newExp.type.baseType, newExp.type.arrayDim + 1); }
+            return newExp.type; // Retorna o tipo do 'data', ex: Ponto
+        }
+        if (exp instanceof ExpIndex indexExp) {
+            Type targetType = inferExpressionType(indexExp.target);
+            if (targetType.arrayDim > 0) { return new Type(targetType.baseType, targetType.arrayDim - 1); }
+        }
+        if (exp instanceof LValueId lval) {
+             if (!variableTypes.containsKey(lval.id)) { throw new IllegalStateException("Variável '" + lval.id + "' usada antes da atribuição."); }
+            return variableTypes.get(lval.id);
+        }
+        if (exp instanceof LValueIndex lval) {
+            Type targetType = inferExpressionType(lval.target);
+            if (targetType.arrayDim > 0) { return new Type(targetType.baseType, targetType.arrayDim - 1); }
+        }
+        if (exp instanceof ExpCall call) {
+            Fun fun = allFunctions.get(call.id);
+            if (fun != null && fun.retTypes.size() == 1) { return fun.retTypes.get(0); }
+        }
+        if (exp instanceof ExpCallIndexed callIdx) {
+            Fun fun = allFunctions.get(callIdx.call.id);
+            if (fun != null && callIdx.index instanceof ExpInt) {
+                int idx = ((ExpInt)callIdx.index).value;
+                if (idx >= 0 && idx < fun.retTypes.size()) { return fun.retTypes.get(idx); }
+            }
+        }
+        // --- NOVO: Inferência para acesso a campos ---
+        if (exp instanceof ExpField fieldExp) {
+            Type targetType = inferExpressionType(fieldExp.target);
+            Data dataType = allDataTypes.get(targetType.baseType);
+            if (dataType instanceof DataRegular) {
+                for (Decl decl : ((DataRegular) dataType).declarations) {
+                    if (decl.id.equals(fieldExp.field)) {
+                        return decl.type;
+                    }
+                }
+            }
+            throw new IllegalStateException("Campo '" + fieldExp.field + "' não encontrado no tipo '" + targetType.baseType + "'.");
+        }
+        
         throw new UnsupportedOperationException("Não foi possível inferir o tipo para a expressão: " + exp.getClass().getName());
     }
 
@@ -110,13 +141,10 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     }
 
 
-    // --- ATUALIZADO: visitCmdAssign para lidar com LValueIndex ---
+    // --- ATUALIZADO: visitCmdAssign para lidar com LValueField ---
     @Override
     public String visitCmdAssign(CmdAssign cmd) {
         String expression = cmd.expression.accept(this);
-
-        // A chamada a cmd.target.accept(this) agora funcionará corretamente
-        // para LValueId e LValueIndex.
         String target = cmd.target.accept(this); 
 
         if (cmd.target instanceof LValueId) {
@@ -130,7 +158,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             }
         }
         
-        // Para LValueId (já declarado) e LValueIndex, a lógica é a mesma.
+        // Para LValueId (já declarado), LValueIndex e LValueField, a lógica é a mesma.
         return target + " = " + expression + ";\n";
     }
 
@@ -205,31 +233,39 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return exp.name;
     }
     
-    // ATUALIZADO: Gerar as classes de retorno antes de qualquer outra coisa
+    // --- ATUALIZADO: visitProg para lidar com 'data' ---
     @Override
     public String visitProg(Prog prog) {
         StringBuilder sb = new StringBuilder();
         sb.append("import java.util.Scanner;\n\n");
         sb.append("public class ").append(className).append(" {\n");
         
-        // Coleta todas as definições de função primeiro
+        // Limpa e pré-processa todas as definições
+        allFunctions.clear();
+        allDataTypes.clear();
         for (Def def : prog.definitions) {
             if (def instanceof Fun) {
-                Fun fun = (Fun) def;
-                allFunctions.put(fun.id, fun);
+                allFunctions.put(((Fun) def).id, (Fun) def);
+            } else if (def instanceof Data) {
+                allDataTypes.put(((Data) def).name, (Data) def);
             }
         }
 
         indentLevel++;
 
-        // Gera as classes aninhadas para múltiplos retornos
+        // 1. Gera as classes para os tipos 'data'
+        for (Data data : allDataTypes.values()) {
+            sb.append(data.accept(this));
+        }
+
+        // 2. Gera as classes de retorno para múltiplos retornos
         for (Fun fun : allFunctions.values()) {
             if (fun.retTypes.size() > 1) {
                 sb.append(generateReturnClass(fun));
             }
         }
         
-        // Agora gera os métodos
+        // 3. Gera os métodos para as funções
         for (Def def : prog.definitions) {
             if (def instanceof Fun) {
                 sb.append(def.accept(this));
@@ -575,8 +611,19 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     public String visitData(Data data) { return null; }
     @Override
     public String visitDataAbstract(DataAbstract data) { return null; }
+    // --- NOVO: Visitor para DataRegular ---
     @Override
-    public String visitDataRegular(DataRegular data) { return null; }
+    public String visitDataRegular(DataRegular data) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(indent()).append("public static class ").append(data.name).append(" {\n");
+        indentLevel++;
+        for (Decl decl : data.declarations) {
+            sb.append(indent()).append("public ").append(getJavaType(decl.type)).append(" ").append(decl.id).append(";\n");
+        }
+        indentLevel--;
+        sb.append(indent()).append("}\n\n");
+        return sb.toString();
+    }
     @Override
     public String visitDecl(Decl decl) { return null; }
     @Override
@@ -612,16 +659,22 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         String index = exp.index.accept(this);
         return "(" + functionCall + ".ret" + index + ")";
     }
+    // --- NOVO: Visitor para acesso a campos (p.x) ---
     @Override
-    public String visitExpField(ExpField exp) { return null; }
+    public String visitExpField(ExpField exp) {
+        return exp.target.accept(this) + "." + exp.field;
+    }
     @Override
     public String visitExpNull(ExpNull exp) { return null; }
     @Override
     public String visitItCond(ItCond itCond) { return null; }
     @Override
     public String visitLValue(LValue lValue) { return null; }
+    // --- NOVO: Visitor para campos no lado esquerdo (p.x = ...) ---
     @Override
-    public String visitLValueField(LValueField lValueField) { return null; }
+    public String visitLValueField(LValueField lValueField) {
+        return lValueField.target.accept(this) + "." + lValueField.field;
+    }
     // --- LValue VISITORS CORRIGIDOS ---
     // Esta é a correção principal. Agora o visitor sabe o que fazer
     // quando encontra uma variável simples no lado esquerdo de uma atribuição.
