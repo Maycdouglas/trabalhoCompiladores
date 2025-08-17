@@ -77,7 +77,7 @@ public class Main {
                     break;
                 case "-gen":
                     semant();
-                    codeGen(filePath);
+                    codeGen(filePath, outputDir);
                     break;
                 case "-src":
                     semant();
@@ -167,7 +167,7 @@ public class Main {
      * @brief Fase 5b: Geração de Código Jasmin. Executa um visitor para gerar
      *        código .j a partir da AST.
      */
-    public static void codeGen(String inputPath) throws IOException {
+    public static void codeGen(String inputPath, String outputDir) throws IOException {
         System.out.println("--- Gerando Código Jasmin ---");
         String baseName = getBaseName(inputPath);
 
@@ -178,7 +178,7 @@ public class Main {
         ast.accept(jasminVisitor);
         String jasminCode = jasminVisitor.getCode();
 
-        String outFileName = baseName + ".j";
+        String outFileName = Paths.get(outputDir, baseName + ".j").toString();
         FileWriter writer = new FileWriter(outFileName);
         writer.write(jasminCode);
         writer.close();
@@ -199,7 +199,7 @@ public class Main {
 
     /**
      * @brief Fase 5c: Geração de Código Source-to-Source.
-     * Executa um visitor para gerar código .java a partir da AST.
+     *        Executa um visitor para gerar código .java a partir da AST.
      */
     // ATUALIZAR sourceGen para aceitar o diretório de saída
     public static void sourceGen(String inputPath, String outputDir) throws IOException {

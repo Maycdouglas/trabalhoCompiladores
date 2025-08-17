@@ -12,16 +12,16 @@
 ANTLR_JAR 		:= antlr-4.8-complete.jar
 JASMIN_JAR 		:= jasmin.jar
 MAIN_CLASS 		:= Main
-BUILD_DIR       := build
 
 # MUDANÇA: Voltamos para uma definição de fontes mais simples para evitar erros.
 # Garanta que todas as suas pastas de código fonte estejam listadas aqui.
-SOURCE_FILES 	:= parser/*.java ast/*.java error/*.java semant/*.java interpreter/*.java jasmin/*.java codegen/*.java Main.java
+SOURCE_FILES 	:= parser/*.java ast/*.java error/*.java semant/*.java interpreter/*.java jasmin/*.java Main.java
 
 # Ferramentas e Classpath
 JAVAC 			:= javac
 JAVA  			:= java
 CP 				:= ".:$(ANTLR_JAR)"
+BUILD_DIR		:= ./build
 
 # MUDANÇA: Captura o nome do arquivo passado após o alvo (ex: 'make run-gen arquivo.lan')
 # $(word 2, ...) pega a segunda palavra do comando.
@@ -45,7 +45,6 @@ generate: parser/lang.g4
 # Limpa todos os arquivos gerados e compilados
 clean:
 	@echo "--- Limpando... ---"
-	rm -rf $(BUILD_DIR) # Remove a pasta de build
 	rm -f parser/*.class ast/*.class error/*.class semant/*.class interpreter/*.class jasmin/*.class *.class *.j
 	rm -f parser/lang*.java parser/lang*.tokens parser/lang*.interp
 
@@ -54,23 +53,20 @@ clean:
 # Extrai o nome base do arquivo (ex: 'assoc' de '../path/assoc.lan')
 BASENAME := $(basename $(notdir $(ARGS)))
 
-# Atualiza o Classpath para incluir o diretório de build
-RUN_CP := "$(BUILD_DIR):$(ANTLR_JAR)"
-
 # Alvo para Análise Sintática (-syn)
 run-syn: compile
 	@echo "--- Executando Análise Sintática em $(ARGS)... ---"
-	$(JAVA) -cp $(RUN_CP) $(MAIN_CLASS) -syn $(ARGS)
+	$(JAVA) -cp $(CP) $(MAIN_CLASS) -syn $(ARGS)
 
 # Alvo para Análise Semântica (-t)
 run-semant: compile
 	@echo "--- Executando Análise Semântica em $(ARGS)... ---"
-	$(JAVA) -cp $(RUN_CP) $(MAIN_CLASS) -t $(ARGS)
+	$(JAVA) -cp $(CP) $(MAIN_CLASS) -t $(ARGS)
 
 # Alvo para Interpretação (-i)
 run-interp: compile
 	@echo "--- Interpretando $(ARGS)... ---"
-	$(JAVA) -cp $(RUN_CP) $(MAIN_CLASS) -i $(ARGS)
+	$(JAVA) -cp $(CP) $(MAIN_CLASS) -i $(ARGS)
 
 print-dot: compile
 	@echo "--- Gerando arquivo Dot $(ARGS)... ---"
@@ -79,18 +75,13 @@ print-dot: compile
 # Alvo para Geração de Código Jasmin (-gen) com Montagem e Execução
 run-gen: compile
 	@echo "\n--- [1/3] Gerando código Jasmin para $(ARGS)... ---"
-	$(JAVA) -cp $(CP) $(MAIN_CLASS) -gen $(ARGS)
-	
-	@echo "\n--- [2/3] Montando $(BASENAME).j com Jasmin... ---"
-	$(JAVA) -jar $(JASMIN_JAR) $(BASENAME).j
-	
-	@echo "\n--- [3/3] Executando $(BASENAME).class ---"
-	$(JAVA) -cp . $(BASENAME)
+	$(JAVA) -cp $(CP) $(MAIN_CLASS) -gen $(ARGS) $(BUILD_DIR)
+
 
 # NOVO ALVO: run-src para source-to-source
 run-src: compile
 	@echo "--- Gerando código Java para $(ARGS)... ---"
-	$(JAVA) -cp $(RUN_CP) $(MAIN_CLASS) -src $(ARGS) $(BUILD_DIR)
+	$(JAVA) -cp $(CP) $(MAIN_CLASS) -src $(ARGS) $(BUILD_DIR)
 
 # Ignora o nome do arquivo para que 'make' não o interprete como um alvo
 %:
