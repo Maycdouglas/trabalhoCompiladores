@@ -133,7 +133,6 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         StringBuilder sb = new StringBuilder();
         
         if (cmd.condition instanceof ItCondExpr) {
-            // Lógica para iterate(expr) - já implementada
             String loopVar = "_i" + loopCounter++;
             String limitExpr = cmd.condition.accept(this);
             sb.append("for (int ").append(loopVar).append(" = 0; ")
@@ -143,27 +142,40 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             sb.append(indent()).append("}\n");
             
         } else if (cmd.condition instanceof ItCondLabelled) {
-            // --- NOVO: Lógica para iterate(id : expr) ---
             ItCondLabelled cond = (ItCondLabelled) cmd.condition;
             String loopVar = cond.label;
-            String limitExpr = cond.expression.accept(this);
+            String iterableExpr = cond.expression.accept(this);
             
-            // Adiciona a variável do loop ao escopo para que não seja redeclarada dentro do bloco
-            declaredVariables.add(loopVar);
-            // Assume que é um Int por enquanto
-            variableTypes.put(loopVar, new Type("Int", 0)); 
+            // Inferencia de tipo para saber se é um array ou um inteiro
+            Type iterableType = inferExpressionType(cond.expression);
             
-            sb.append("for (int ").append(loopVar).append(" = 0; ")
-              .append(loopVar).append(" < ").append(limitExpr).append("; ")
-              .append(loopVar).append("++) {\n");
-              
-            sb.append(cmd.body.accept(this));
-            
-            sb.append(indent()).append("}\n");
-            
-            // Remove a variável do loop do escopo para que possa ser usada novamente fora
-            declaredVariables.remove(loopVar);
-            variableTypes.remove(loopVar);
+            // --- NOVO: Lógica para iterar sobre ARRAYS ---
+            if (iterableType.arrayDim > 0) {
+                // Gera um laço for-each
+                Type elementType = new Type(iterableType.baseType, iterableType.arrayDim - 1);
+                String javaElementType = getJavaType(elementType);
+
+                declaredVariables.add(loopVar);
+                variableTypes.put(loopVar, elementType);
+                
+                sb.append("for (").append(javaElementType).append(" ").append(loopVar).append(" : ").append(iterableExpr).append(") {\n");
+                sb.append(cmd.body.accept(this));
+                sb.append(indent()).append("}\n");
+                
+                declaredVariables.remove(loopVar);
+                variableTypes.remove(loopVar);
+
+            } else { // Lógica existente para iterar com inteiros
+                declaredVariables.add(loopVar);
+                variableTypes.put(loopVar, new Type("Int", 0)); 
+                sb.append("for (int ").append(loopVar).append(" = 0; ")
+                  .append(loopVar).append(" < ").append(iterableExpr).append("; ")
+                  .append(loopVar).append("++) {\n");
+                sb.append(cmd.body.accept(this));
+                sb.append(indent()).append("}\n");
+                declaredVariables.remove(loopVar);
+                variableTypes.remove(loopVar);
+            }
         }
         
         return sb.toString();
