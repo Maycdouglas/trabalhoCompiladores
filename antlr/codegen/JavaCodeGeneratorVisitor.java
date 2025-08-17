@@ -6,12 +6,18 @@ import interpreter.Visitor;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.List;
 
 public class JavaCodeGeneratorVisitor implements Visitor<String> {
 
     private final String className;
     private final Set<String> declaredVariables = new HashSet<>();
     private final Map<String, Type> variableTypes = new java.util.HashMap<>();
+    // --- NOVO: Rastrear a função atual para saber seus tipos de retorno ---
+    private Fun currentFunction = null; 
+    // --- NOVO: Rastrear todas as funções para a geração das classes de retorno ---
+    private Map<String, Fun> allFunctions = new java.util.HashMap<>();
     
     // --- NOVO: Variável para controlar a indentação ---
     private int indentLevel = 0;
@@ -199,42 +205,124 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return exp.name;
     }
     
+    // ATUALIZADO: Gerar as classes de retorno antes de qualquer outra coisa
     @Override
     public String visitProg(Prog prog) {
         StringBuilder sb = new StringBuilder();
-        sb.append("import java.util.Scanner;\n\n"); // Adiciona import
+        sb.append("import java.util.Scanner;\n\n");
         sb.append("public class ").append(className).append(" {\n");
+        
+        // Coleta todas as definições de função primeiro
+        for (Def def : prog.definitions) {
+            if (def instanceof Fun) {
+                Fun fun = (Fun) def;
+                allFunctions.put(fun.id, fun);
+            }
+        }
+
         indentLevel++;
+
+        // Gera as classes aninhadas para múltiplos retornos
+        for (Fun fun : allFunctions.values()) {
+            if (fun.retTypes.size() > 1) {
+                sb.append(generateReturnClass(fun));
+            }
+        }
+        
+        // Agora gera os métodos
         for (Def def : prog.definitions) {
             if (def instanceof Fun) {
                 sb.append(def.accept(this));
             }
         }
+
         indentLevel--;
         sb.append("}\n");
         return sb.toString();
     }
 
-    // ATUALIZADO: Cria a instância do Scanner no início do main
+    // --- NOVO: Método para gerar a classe de retorno aninhada ---
+    private String generateReturnClass(Fun fun) {
+        StringBuilder sb = new StringBuilder();
+        String returnClassName = fun.id + "_return";
+        sb.append(indent()).append("public static class ").append(returnClassName).append(" {\n");
+        indentLevel++;
+        
+        // Campos
+        for (int i = 0; i < fun.retTypes.size(); i++) {
+            String fieldType = getJavaType(fun.retTypes.get(i));
+            sb.append(indent()).append("public ").append(fieldType).append(" ret").append(i).append(";\n");
+        }
+
+        // Construtor
+        sb.append(indent()).append("public ").append(returnClassName).append("(");
+        for (int i = 0; i < fun.retTypes.size(); i++) {
+            String fieldType = getJavaType(fun.retTypes.get(i));
+            sb.append(fieldType).append(" ret").append(i);
+            if (i < fun.retTypes.size() - 1) {
+                sb.append(", ");
+            }
+        }
+        sb.append(") {\n");
+        indentLevel++;
+        for (int i = 0; i < fun.retTypes.size(); i++) {
+            sb.append(indent()).append("this.ret").append(i).append(" = ret").append(i).append(";\n");
+        }
+        indentLevel--;
+        sb.append(indent()).append("}\n");
+
+        indentLevel--;
+        sb.append(indent()).append("}\n\n");
+        return sb.toString();
+    }
+
+    // --- visitFun CORRIGIDO ---
     @Override
     public String visitFun(Fun fun) {
-        if (fun.id.equals("main")) {
-            StringBuilder sb = new StringBuilder();
-            sb.append(indent()).append("public static void main(String[] args) {\n");
-            
-            indentLevel++;
-            sb.append(indent()).append("Scanner _scanner = new Scanner(System.in);\n"); // Cria o Scanner
-            indentLevel--;
-
-            declaredVariables.clear();
-            variableTypes.clear();
-            
-            sb.append(fun.body.accept(this));
-            
-            sb.append(indent()).append("}\n");
-            return sb.toString();
+        this.currentFunction = fun;
+        
+        StringBuilder sb = new StringBuilder();
+        declaredVariables.clear();
+        variableTypes.clear();
+        
+        String returnType;
+        if (fun.retTypes.isEmpty()) {
+            returnType = "void";
+        } else if (fun.retTypes.size() == 1) {
+            returnType = getJavaType(fun.retTypes.get(0));
+        } else {
+            returnType = fun.id + "_return";
         }
-        return "";
+
+        // CORREÇÃO APLICADA AQUI
+        String params;
+        if (fun.id.equals("main")) {
+            params = "String[] args"; // Força a assinatura correta para o main
+        } else {
+            params = fun.params.stream()
+                .map(p -> {
+                    String paramType = getJavaType(p.type);
+                    declaredVariables.add(p.id);
+                    variableTypes.put(p.id, p.type);
+                    return paramType + " " + p.id;
+                })
+                .collect(Collectors.joining(", "));
+        }
+
+        sb.append(indent()).append("public static ").append(returnType).append(" ").append(fun.id)
+          .append("(").append(params).append(") {\n");
+        
+        if (fun.id.equals("main")) {
+            indentLevel++;
+            sb.append(indent()).append("Scanner _scanner = new Scanner(System.in);\n");
+            indentLevel--;
+        }
+
+        sb.append(fun.body.accept(this));
+        
+        sb.append(indent()).append("}\n\n");
+        this.currentFunction = null;
+        return sb.toString();
     }
 
     // --- NOVO: Implementação do Comando Read ---
@@ -397,10 +485,92 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     // --- Métodos não implementados (mantidos como no seu arquivo) ---
     @Override
     public String visitCmd(Cmd exp) { return null; }
+    // --- visitCmdCall CORRIGIDO ---
     @Override
-    public String visitCmdCall(CmdCall cmd) { return null; }
+    public String visitCmdCall(CmdCall cmd) {
+        String args = cmd.args.stream()
+            .map(arg -> arg.accept(this))
+            .collect(Collectors.joining(", "));
+
+        String callExpr = cmd.id + "(" + args + ")";
+        
+        Fun calledFun = allFunctions.get(cmd.id);
+        if (calledFun == null) {
+            throw new IllegalStateException("Função '" + cmd.id + "' não encontrada.");
+        }
+
+        if (cmd.rets.isEmpty()) {
+            return callExpr + ";\n";
+        }
+        
+        // Múltiplos retornos
+        if (calledFun.retTypes.size() > 1) {
+            String tempVar = "_" + cmd.id + "_ret" + loopCounter++;
+            String returnClassName = cmd.id + "_return";
+            
+            StringBuilder sb = new StringBuilder();
+            sb.append(returnClassName).append(" ").append(tempVar).append(" = ").append(callExpr).append(";\n");
+
+            for (int i = 0; i < cmd.rets.size(); i++) {
+                LValue retLVal = cmd.rets.get(i);
+                if (retLVal instanceof LValueId) {
+                    String varName = ((LValueId) retLVal).id;
+                    String assignmentSource = tempVar + ".ret" + i;
+                    
+                    // Verifica se a variável já foi declarada
+                    if (!declaredVariables.contains(varName)) {
+                        declaredVariables.add(varName);
+                        Type returnType = calledFun.retTypes.get(i);
+                        variableTypes.put(varName, returnType);
+                        String javaType = getJavaType(returnType);
+                        
+                        // Gera a declaração completa
+                        sb.append(indent()).append(javaType).append(" ").append(varName).append(" = ").append(assignmentSource).append(";\n");
+                    } else {
+                        // Apenas atribui
+                        sb.append(indent()).append(varName).append(" = ").append(assignmentSource).append(";\n");
+                    }
+                } else {
+                    // Lida com outros LValues (como v[i])
+                    String target = retLVal.accept(this);
+                    sb.append(indent()).append(target).append(" = ").append(tempVar).append(".ret").append(i).append(";\n");
+                }
+            }
+            return sb.toString();
+        } else { // Retorno único
+            String target = cmd.rets.get(0).accept(this);
+            if (cmd.rets.get(0) instanceof LValueId) {
+                String varName = ((LValueId) cmd.rets.get(0)).id;
+                if (!declaredVariables.contains(varName)) {
+                     declaredVariables.add(varName);
+                     Type returnType = calledFun.retTypes.get(0);
+                     variableTypes.put(varName, returnType);
+                     String javaType = getJavaType(returnType);
+                     return javaType + " " + target + " = " + callExpr + ";\n";
+                }
+            }
+            return target + " = " + callExpr + ";\n";
+        }
+    }
+    // ATUALIZADO: para lidar com múltiplos valores de retorno
     @Override
-    public String visitCmdReturn(CmdReturn cmd) { return null; }
+    public String visitCmdReturn(CmdReturn cmd) {
+        if (cmd.values.isEmpty()) {
+            return "return;\n";
+        }
+
+        String values = cmd.values.stream()
+            .map(v -> v.accept(this))
+            .collect(Collectors.joining(", "));
+
+        // Se a função atual tiver múltiplos retornos, instancie a classe de retorno
+        if (currentFunction != null && currentFunction.retTypes.size() > 1) {
+            return "return new " + currentFunction.id + "_return(" + values + ");\n";
+        }
+
+        // Caso contrário, é um retorno simples
+        return "return " + values + ";\n";
+    }
     @Override
     public String visitData(Data data) { return null; }
     @Override
@@ -413,10 +583,35 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     public String visitDef(Def def) { return null; }
     @Override
     public String visitExp(Exp exp) { return null; }
+    // --- ATUALIZADO: Implementação de Chamadas de Função em Expressões ---
     @Override
-    public String visitExpCall(ExpCall exp) { return null; }
-    @Override
-    public String visitExpCallIndexed(ExpCallIndexed exp) { return null; }
+    public String visitExpCall(ExpCall exp) {
+        // Este método agora apenas gera a chamada base, ex: "soma(10, 5)"
+        String args = exp.args.stream()
+            .map(arg -> arg.accept(this))
+            .collect(Collectors.joining(", "));
+            
+        return exp.id + "(" + args + ")";
+    }
+     @Override
+    public String visitExpCallIndexed(ExpCallIndexed exp) {
+        Fun calledFun = allFunctions.get(exp.call.id);
+        if (calledFun == null) {
+            throw new IllegalStateException("Função '" + exp.call.id + "' não encontrada.");
+        }
+
+        // Gera a chamada base, ex: "fibonacci(n - 1)"
+        String functionCall = exp.call.accept(this);
+        
+        // Se a função tem um único retorno, o [0] é implícito e não gera código extra em Java.
+        if (calledFun.retTypes.size() == 1) {
+            return functionCall;
+        }
+
+        // Se a função tem múltiplos retornos, acessa o campo .retX do objeto de retorno.
+        String index = exp.index.accept(this);
+        return "(" + functionCall + ".ret" + index + ")";
+    }
     @Override
     public String visitExpField(ExpField exp) { return null; }
     @Override
