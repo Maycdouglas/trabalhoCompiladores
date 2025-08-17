@@ -13,6 +13,7 @@ import jasmin.JasminGeneratorVisitor;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -48,6 +49,10 @@ public class Main {
         String directive = args[0];
         String filePath = args[1];
 
+        String className = new File(args[1]).getName().replaceFirst("[.][^.]+$", "");
+
+        className = JasminGeneratorVisitor.getSafeClassName(className);
+
         errorListener = new SyntaxErrorListener();
 
         try {
@@ -72,7 +77,7 @@ public class Main {
                     break;
                 case "-gen":
                     semant();
-                    codeGen(filePath);
+                    codeGen(className);
                     break;
                 case "-dot":
                     printParseTreeDot(tree, parser, "" + getBaseName(filePath) + ".dot");
