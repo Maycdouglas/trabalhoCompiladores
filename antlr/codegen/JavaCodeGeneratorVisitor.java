@@ -20,6 +20,8 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     private Map<String, Fun> allFunctions = new java.util.HashMap<>();
     // --- NOVO: Mapa para guardar as definições de 'data' ---
     private Map<String, Data> allDataTypes = new java.util.HashMap<>();
+    // --- NOVO: Flag para saber se estamos dentro de uma classe 'data' ---
+    private boolean isInsideDataMethod = false;
     
     // --- NOVO: Variável para controlar a indentação ---
     private int indentLevel = 0;
@@ -361,40 +363,34 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return sb.toString();
     }
 
-    // --- NOVO: Implementação do Comando Read ---
+    // --- visitCmdRead ATUALIZADO para ser genérico ---
     @Override
     public String visitCmdRead(CmdRead cmd) {
         StringBuilder sb = new StringBuilder();
-        // Apenas para LValueId por enquanto
-        if (cmd.lvalue instanceof LValueId) {
-            String varName = ((LValueId) cmd.lvalue).id;
-            
-            sb.append("System.out.print(\" entrada> \");\n");
-            
-            // Adiciona indentação para a próxima linha
-            sb.append(indent());
+        
+        // Gera o código para o alvo da leitura (pode ser 'x', 'v[i]' ou 'p.x')
+        String target = cmd.lvalue.accept(this);
+        
+        // Infére o tipo do alvo para saber qual método do Scanner usar
+        Type targetType = inferExpressionType(cmd.lvalue);
+        if (targetType == null) {
+            throw new IllegalStateException("Não foi possível inferir o tipo para o alvo do comando 'read'.");
+        }
+        
+        sb.append("System.out.print(\" entrada> \");\n");
+        sb.append(indent());
 
-            // Assumimos que a variável já foi declarada e pegamos seu tipo.
-            Type varType = variableTypes.get(varName);
-            if (varType == null) {
-                throw new IllegalStateException("Variável '" + varName + "' usada em 'read' sem ter sido declarada.");
-            }
-            
-            // Escolhe o método do Scanner com base no tipo
-            switch (varType.baseType) {
-                case "Int":
-                    sb.append(varName).append(" = _scanner.nextInt();\n");
-                    break;
-                case "Float":
-                    sb.append(varName).append(" = _scanner.nextFloat();\n");
-                    break;
-                // Por padrão, lemos como String para Char ou outros tipos
-                default:
-                    sb.append(varName).append(" = _scanner.next();\n");
-                    break;
-            }
-        } else {
-            return "// read em arrays/campos ainda não suportado\n";
+        // Escolhe o método do Scanner com base no tipo inferido
+        switch (targetType.baseType) {
+            case "Int":
+                sb.append(target).append(" = _scanner.nextInt();\n");
+                break;
+            case "Float":
+                sb.append(target).append(" = _scanner.nextFloat();\n");
+                break;
+            default: // Para Char, String, etc.
+                sb.append(target).append(" = _scanner.next();\n");
+                break;
         }
         return sb.toString();
     }
@@ -609,8 +605,30 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     }
     @Override
     public String visitData(Data data) { return null; }
+    // --- NOVO: Visitor para DataAbstract ---
     @Override
-    public String visitDataAbstract(DataAbstract data) { return null; }
+    public String visitDataAbstract(DataAbstract data) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(indent()).append("public static class ").append(data.name).append(" {\n");
+        indentLevel++;
+
+        // Gera campos como private para encapsulamento
+        for (Decl decl : data.declarations) {
+            sb.append(indent()).append("private ").append(getJavaType(decl.type)).append(" ").append(decl.id).append(";\n");
+        }
+        sb.append("\n");
+
+        // Gera os métodos públicos da classe
+        isInsideDataMethod = true;
+        for (Fun fun : data.functions) {
+            sb.append(fun.accept(this));
+        }
+        isInsideDataMethod = false;
+
+        indentLevel--;
+        sb.append(indent()).append("}\n\n");
+        return sb.toString();
+    }
     // --- NOVO: Visitor para DataRegular ---
     @Override
     public String visitDataRegular(DataRegular data) {
@@ -664,8 +682,11 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     public String visitExpField(ExpField exp) {
         return exp.target.accept(this) + "." + exp.field;
     }
+    // --- visitExpNull CORRIGIDO ---
     @Override
-    public String visitExpNull(ExpNull exp) { return null; }
+    public String visitExpNull(ExpNull exp) {
+        return "null";
+    }
     @Override
     public String visitItCond(ItCond itCond) { return null; }
     @Override

@@ -1,0 +1,50 @@
+abstract data Racional {
+  numerador :: Int;
+  denominador :: Int;
+
+  -- Função que atua como um construtor para inicializar o objeto
+  init(this :: Racional, n :: Int, d :: Int) {
+    this.numerador = n;
+    this.denominador = d;
+  }
+
+  -- Getter para o numerador
+  getNum(this :: Racional) : Int {
+    return this.numerador;
+  }
+  
+  -- Getter para o denominador
+  getDen(this :: Racional) : Int {
+    return this.denominador;
+  }
+
+  -- Método para somar dois racionais. Note que o primeiro parâmetro é a instância (this).
+  add(this :: Racional, outro :: Racional) : Racional {
+    r = new Racional;
+    -- Dentro da definição do 'data', podemos acessar os campos privados.
+    num = this.numerador * outro.denominador + outro.numerador * this.denominador;
+    den = this.denominador * outro.denominador;
+    init(r, num, den); -- Usamos nosso próprio construtor
+    return r;
+  }
+}
+
+main() {
+  r1 = new Racional;
+  r1.init(r1, 1, 2); -- Inicializa r1 para 1/2
+
+  r2 = new Racional;
+  r1.init(r2, 1, 3); -- Inicializa r2 para 1/3
+
+  -- Chama o método 'add' na instância 'r1', passando 'r2' como argumento.
+  r3 = add(r1, r2)[0];
+  
+  -- Usa os getters para acessar os valores de forma segura.
+  num = getNum(r3)[0];
+  den = getDen(r3)[0];
+  
+  print num; -- Esperado: 5
+  print '/';
+  print den; -- Esperado: 6
+  print '\n';
+}
