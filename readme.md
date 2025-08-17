@@ -103,7 +103,7 @@ Linux:
 
 1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/AFD.lan`
    - Exception in thread "main" java.lang.UnsupportedOperationException: Tipo de atribuição não suportado.
-   (RESOLVIDO)
+     (RESOLVIDO)
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/linked.lan`
    - CERTO
 
@@ -112,7 +112,6 @@ Linux:
 1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/simple/scope.lan` (ERRADO)
 
 #### TYPES - FUNCTION
-
 
 #### TYPES - FULL
 
@@ -136,7 +135,7 @@ Linux:
 
 ### COMANDO COM O MAKEFILE
 
-1. `java -cp ".:antlr-4.8-complete.jar" Main -i ../Lang/semantica/certo/simple/assoc.lan`
+1. `java -cp ".:antlr-4.8-complete.jar" Main -i arquivosTeste/dataAbstract.lan`
 2. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/sintaxe/certo/printCMD.lan ./build`
 3. `java -cp ".:antlr-4.8-complete.jar" Main -src arquivosTeste/dataAbstract.lan ./build`
 
