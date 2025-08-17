@@ -122,56 +122,65 @@ public class SemanticVisitor implements Visitor<Type> {
         return null;
     }
 
+
     @Override
     public Type visitCmdCall(CmdCall cmd) {
         Fun funDef = theta.get(cmd.id);
         if (funDef == null) {
             addError(cmd.getLine(), "Função '" + cmd.id + "' não declarada.");
+            return null; 
         }
 
         if (funDef.params.size() != cmd.args.size()) {
-            throw new RuntimeException("Linha " + cmd.getLine() + ": Número incorreto de argumentos para a função '"
+            addError(cmd.getLine(), "Número incorreto de argumentos para a função '"
                     + cmd.id + "'. Esperava " +
                     funDef.params.size() + ", mas recebeu " + cmd.args.size() + ".");
-        }
-
-        for (int i = 0; i < funDef.params.size(); i++) {
-            Type argType = cmd.args.get(i).accept(this);
-            Type paramType = funDef.params.get(i).type;
-            if (!argType.baseType.equals(paramType.baseType) || argType.arrayDim != paramType.arrayDim) {
-                throw new RuntimeException("Linha " + cmd.getLine() + ": " +
-                        "Tipo incorreto para o argumento " + (i + 1) + " na chamada da função '" + cmd.id + "'.");
+        } else {
+            for (int i = 0; i < funDef.params.size(); i++) {
+                Type argType = cmd.args.get(i).accept(this);
+                Type paramType = funDef.params.get(i).type;
+                if (!argType.isEquivalent(paramType)) {
+                    addError(cmd.args.get(i).getLine(),
+                            "Tipo incorreto para o argumento " + (i + 1) + " na chamada da função '" + cmd.id + "'.");
+                }
             }
         }
 
         if (cmd.rets != null && !cmd.rets.isEmpty()) {
             if (cmd.rets.size() != funDef.retTypes.size()) {
-                throw new RuntimeException(
-                        "Linha " + cmd.getLine() + ": Número de variáveis de retorno (" + cmd.rets.size() +
-                                ") é diferente do número de valores retornados (" + funDef.retTypes.size() +
-                                ") pela função '" + cmd.id + "'.");
-            }
+                addError(cmd.getLine(), "Número de variáveis de retorno (" + cmd.rets.size() +
+                        ") é diferente do número de valores retornados (" + funDef.retTypes.size() +
+                        ") pela função '" + cmd.id + "'.");
+            } else {
+                for (int i = 0; i < cmd.rets.size(); i++) {
+                    LValue targetLval = cmd.rets.get(i);
+                    Type returnType = funDef.retTypes.get(i);
 
-            for (int i = 0; i < cmd.rets.size(); i++) {
-                LValue targetLval = cmd.rets.get(i);
-                Type returnType = funDef.retTypes.get(i);
-                Type lvalType = targetLval.accept(this);
+                    if (targetLval instanceof LValueId) {
+                        String varName = ((LValueId) targetLval).id;
+                        Type existingVarType = findVar(varName); 
 
-                if (targetLval instanceof LValueId) {
-                    String varName = ((LValueId) targetLval).id;
-                    if (lvalType == null) {
-                        currentScope().put(varName, returnType);
+                        if (existingVarType == null) {
+                            currentScope().put(varName, returnType);
+                            ((LValueId) targetLval).expType = returnType;
+                        } else {
+                            ((LValueId) targetLval).expType = existingVarType;
+                            if (!existingVarType.isEquivalent(returnType)) {
+                                addError(targetLval.getLine(),
+                                        "Incompatibilidade de tipo ao atribuir o retorno da função '" + cmd.id +
+                                                "' à variável '" + varName + "'. Esperado '" + existingVarType
+                                                + "' mas o retorno é '" + returnType + "'.");
+                            }
+                        }
                     } else {
-                        if (!lvalType.baseType.equals(returnType.baseType)
-                                || lvalType.arrayDim != returnType.arrayDim) {
-                            throw new RuntimeException("Linha " + cmd.getLine() + ": " +
+                        Type lvalType = targetLval.accept(this);
+                        if (!lvalType.isError() && !lvalType.isEquivalent(returnType)) {
+                            addError(targetLval.getLine(),
                                     "Incompatibilidade de tipo ao atribuir o retorno da função '" + cmd.id +
-                                    "' à variável '" + varName + "'.");
+                                            "'. O alvo é do tipo '" + lvalType + "' mas o retorno é '" + returnType
+                                            + "'.");
                         }
                     }
-                } else {
-                    throw new UnsupportedOperationException("Linha " + cmd.getLine() + ": " +
-                            "Atribuição de retorno múltiplo só suporta variáveis simples no momento.");
                 }
             }
         }
