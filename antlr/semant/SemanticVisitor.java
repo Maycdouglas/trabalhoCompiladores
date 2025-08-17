@@ -37,22 +37,43 @@ public class SemanticVisitor implements Visitor<Type> {
         }
     }
 
+    /**
+     * @brief Adiciona um erro semântico à lista de erros.
+     * @param line    A linha onde o erro ocorreu.
+     * @param message A mensagem de erro.
+     */
     private void addError(int line, String message) {
         errors.add("Erro Semântico (linha " + line + "): " + message);
     }
 
+    /**
+     * @brief Retorna o escopo atual de variáveis.
+     * @return O mapa do escopo atual.
+     */
     private Map<String, Type> currentScope() {
         return gamma.peek();
     }
 
+    /**
+     * @brief Retorna o mapeamento de tipos de dados.
+     * @return O mapa de tipos de dados.
+     */
     public Map<String, Data> getDelta() {
         return this.delta;
     }
 
+    /**
+     * @brief Retorna o mapeamento de funções.
+     * @return O mapa de funções.
+     */
     public Map<String, Fun> getTheta() {
         return this.theta;
     }
 
+    /**
+     * @brief Busca uma variável no escopo atual.
+     * @return O tipo da variável, ou null se não encontrada.
+     */
     private Type findVar(String varName) {
         for (int i = gamma.size() - 1; i >= 0; i--) {
             Map<String, Type> scope = gamma.get(i);
@@ -63,6 +84,10 @@ public class SemanticVisitor implements Visitor<Type> {
         return null;
     }
 
+    /**
+     * @brief Visita um comando de atribuição.
+     * @return O tipo da expressão de atribuição.
+     */
     @Override
     public Type visitCmdAssign(CmdAssign cmd) {
         Type expressionType = cmd.expression.accept(this);
@@ -112,6 +137,10 @@ public class SemanticVisitor implements Visitor<Type> {
         }
     }
 
+    /**
+     * @brief Visita um bloco de comandos.
+     * @return O tipo do bloco de comandos.
+     */
     @Override
     public Type visitCmdBlock(CmdBlock cmd) {
         gamma.push(new HashMap<>());
@@ -122,6 +151,10 @@ public class SemanticVisitor implements Visitor<Type> {
         return null;
     }
 
+    /**
+     * @brief Visita uma chamada de função.
+     * @return O tipo da chamada de função.
+     */
     @Override
     public Type visitCmdCall(CmdCall cmd) {
         Fun funDef = theta.get(cmd.id);
@@ -187,6 +220,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return null;
     }
 
+    /**
+     * @brief Visita um comando if.
+     */
     @Override
     public Type visitCmdIf(CmdIf cmd) {
         Type condType = cmd.condition.accept(this);
@@ -201,6 +237,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return null;
     }
 
+    /**
+     * @brief Visita um comando de iteração.
+     */
     @Override
     public Type visitCmdIterate(CmdIterate cmd) {
         Type condType = cmd.condition.accept(this);
@@ -236,18 +275,27 @@ public class SemanticVisitor implements Visitor<Type> {
         return null;
     }
 
+    /**
+     * @brief Visita um comando de impressão.
+     */
     @Override
     public Type visitCmdPrint(CmdPrint cmd) {
         cmd.value.accept(this);
         return null;
     }
 
+    /**
+     * @brief Visita um comando de leitura.
+     */
     @Override
     public Type visitCmdRead(CmdRead cmd) {
         cmd.lvalue.accept(this);
         return null;
     }
 
+    /**
+     * @brief Visita um comando de retorno.
+     */
     @Override
     public Type visitCmdReturn(CmdReturn cmd) {
         if (currentFunction == null) {
@@ -280,11 +328,18 @@ public class SemanticVisitor implements Visitor<Type> {
         return Type.VOID;
     }
 
+    /**
+     * @brief Visita uma definição de função.
+     */
     @Override
     public Type visitDef(Def def) {
         return def.accept(this);
     }
 
+    /**
+     * @brief Visita uma função.
+     * @return O tipo da função.
+     */
     @Override
     public Type visitFun(Fun fun) {
         if (theta.containsKey(fun.id)) {
@@ -294,11 +349,19 @@ public class SemanticVisitor implements Visitor<Type> {
         return null;
     }
 
+    /**
+     * @brief Visita uma definição de dados.
+     * @return O tipo da definição de dados.
+     */
     @Override
     public Type visitData(Data data) {
         return data.accept(this);
     }
 
+    /**
+     * @brief Visita uma definição de dados regulares.
+     * @return O tipo da definição de dados regulares.
+     */
     @Override
     public Type visitDataRegular(DataRegular data) {
         if (delta.containsKey(data.name)) {
@@ -318,6 +381,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return null;
     }
 
+    /**
+     * @brief Visita uma definição de dados abstratos.
+     */
     @Override
     public Type visitDataAbstract(DataAbstract data) {
         if (delta.containsKey(data.name)) {
@@ -343,6 +409,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return null;
     }
 
+    /**
+     * @brief Visita uma expressão binária, como adição ou subtração.
+     */
     @Override
     public Type visitExpBinOp(ExpBinOp expBinOp) {
         Type leftType = expBinOp.left.accept(this);
@@ -406,6 +475,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return resultType;
     }
 
+    /**
+     * @brief Visita uma expressão unária, como negação ou inversão de sinal.
+     */
     @Override
     public Type visitExpUnaryOp(ExpUnaryOp expUnaryOp) {
         Type expType = expUnaryOp.exp.accept(this);
@@ -435,6 +507,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return resultType;
     }
 
+    /**
+     * @brief Visita uma expressão de variável.
+     */
     @Override
     public Type visitExpVar(ExpVar expVar) {
         Type varType = findVar(expVar.name);
@@ -449,6 +524,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return varType;
     }
 
+    /**
+     * @brief Visita uma expressão de variável.
+     */
     @Override
     public Type visitLValueId(LValueId lValueId) {
         Type varType = findVar(lValueId.id);
@@ -463,6 +541,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return varType;
     }
 
+    /**
+     * @brief Visita uma expressão de inteiro.
+     */
     @Override
     public Type visitExpInt(ExpInt exp) {
         Type intType = new Type("Int", 0);
@@ -470,6 +551,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return intType;
     }
 
+    /**
+     * @brief Visita uma expressão de ponto flutuante.
+     */
     @Override
     public Type visitExpFloat(ExpFloat exp) {
         Type floatType = new Type("Float", 0);
@@ -477,6 +561,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return floatType;
     }
 
+    /**
+     * @brief Visita uma expressão de caractere.
+     */
     @Override
     public Type visitExpChar(ExpChar exp) {
         Type charType = new Type("Char", 0);
@@ -484,6 +571,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return charType;
     }
 
+    /**
+     * @brief Visita uma expressão booleana.
+     */
     @Override
     public Type visitExpBool(ExpBool exp) {
         Type boolType = new Type("Bool", 0);
@@ -491,6 +581,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return boolType;
     }
 
+    /**
+     * @brief Visita uma expressão nula.
+     */
     @Override
     public Type visitExpNull(ExpNull exp) {
         Type nullType = new Type("Null", 0);
@@ -498,11 +591,17 @@ public class SemanticVisitor implements Visitor<Type> {
         return nullType;
     }
 
+    /**
+     * @brief Visita uma expressão entre parênteses.
+     */
     @Override
     public Type visitExpParen(ExpParen exp) {
         return exp.exp.accept(this);
     }
 
+    /**
+     * @brief Visita um programa.
+     */
     @Override
     public Type visitProg(Prog prog) {
         for (Def def : prog.definitions) {
@@ -552,6 +651,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return null;
     }
 
+    /**
+     * @brief Visita uma expressão de chamada de função.
+     */
     @Override
     public Type visitExpCall(ExpCall exp) {
         Fun funDef = theta.get(exp.id);
@@ -580,6 +682,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return exp.expType;
     }
 
+    /**
+     * @brief Visita uma expressão de chamada de função indexada.
+     */
     @Override
     public Type visitExpCallIndexed(ExpCallIndexed exp) {
         Fun funDef = theta.get(exp.call.id);
@@ -629,6 +734,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return resultType;
     }
 
+    /**
+     * @brief Visita uma expressão de campo.
+     */
     @Override
     public Type visitExpField(ExpField exp) {
         Type targetType = exp.target.accept(this);
@@ -681,6 +789,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return fieldType;
     }
 
+    /**
+     * @brief Visita uma expressão de chamada de função indexada.
+     */
     @Override
     public Type visitExpIndex(ExpIndex exp) {
         Type targetType = exp.target.accept(this);
@@ -700,6 +811,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return resultType;
     }
 
+    /**
+     * @brief Visita uma expressão de nova alocação.
+     */
     @Override
     public Type visitExpNew(ExpNew exp) {
         Type resultType;
@@ -738,6 +852,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return itCondLabelled.expression.accept(this);
     }
 
+    /**
+     * @brief Visita uma expressão de campo.
+     */
     @Override
     public Type visitLValueField(LValueField lValueField) {
         Type targetType = lValueField.target.accept(this);
@@ -790,6 +907,9 @@ public class SemanticVisitor implements Visitor<Type> {
         return fieldType;
     }
 
+    /**
+     * @brief Visita um LValue de acesso a índice de array.
+     */
     @Override
     public Type visitLValueIndex(LValueIndex lValueIndex) {
         Type targetType = lValueIndex.target.accept(this);
