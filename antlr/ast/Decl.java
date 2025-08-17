@@ -8,13 +8,20 @@ package ast;
 import interpreter.Visitor;
 
 // Declaração: nome e tipo
-public class Decl implements DotPrintable, ASTNode{
+public class Decl implements DotPrintable, ASTNode {
     public final String id;
     public final Type type;
+    public final int line;
 
-    public Decl(String id, Type type) {
+    public Decl(String id, Type type, int line) {
         this.id = id;
         this.type = type;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

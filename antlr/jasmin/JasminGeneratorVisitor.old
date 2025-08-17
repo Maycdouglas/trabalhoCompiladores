@@ -12,9 +12,12 @@ import ast.*;
 import interpreter.Visitor;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * @brief Visitor responsável por percorrer a AST e gerar código de montagem
@@ -22,10 +25,20 @@ import java.util.Map;
  */
 public class JasminGeneratorVisitor implements Visitor<Void> {
 
+    private static final Set<String> JAVA_RESERVED_WORDS = new HashSet<>(Arrays.asList(
+            "abstract", "continue", "for", "new", "switch", "assert", "default",
+            "goto", "package", "synchronized", "boolean", "do", "if", "private",
+            "this", "break", "double", "implements", "protected", "throw", "byte",
+            "else", "import", "public", "throws", "case", "enum", "instanceof",
+            "return", "transient", "catch", "extends", "int", "short", "try",
+            "char", "final", "interface", "static", "void", "class", "finally",
+            "long", "strictfp", "volatile", "const", "float", "native", "super", "while"));
+
     private String className;
     private StringBuilder code = new StringBuilder();
     private int labelCounter = 0;
     private int localIdx = 0;
+    private Fun currentFunction = null;
 
     private Map<String, Integer> locals = new HashMap<>();
     private int nextLocalIndex = 0;
@@ -44,6 +57,13 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
      */
     public String getCode() {
         return code.toString();
+    }
+
+    public static String getSafeClassName(String originalName) {
+        if (JAVA_RESERVED_WORDS.contains(originalName)) {
+            return originalName + "Class";
+        }
+        return originalName;
     }
 
     /**
@@ -74,12 +94,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return "L" + (labelCounter++);
     }
 
-    /**
-     * @brief Visita o nó raiz do programa (Prog) para iniciar a geração de código.
-     *        Gera o cabeçalho da classe, o construtor padrão e, em seguida,
-     *        visita todas as definições de nível superior (funções e tipos de
-     *        dados).
-     */
     @Override
     public Void visitProg(Prog prog) {
         emitHeader(".class public " + className);
@@ -100,12 +114,9 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita uma definição de função (Fun) para gerar o código.
-     *        Define o tamanho da pilha necessária para a função
-     */
     @Override
     public Void visitFun(Fun fun) {
+        this.currentFunction = fun;
         locals.clear();
         nextLocalIndex = 0;
 
@@ -124,24 +135,27 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         }
         signature.append(")");
 
-        if (fun.retTypes.isEmpty()) {
-            signature.append("V");
-        } else {
-            signature.append(getJasminType(fun.retTypes.get(0)));
-        }
-
+        // Tratamento especial para main
         if (fun.id.equals("main")) {
             signature = new StringBuilder("main([Ljava/lang/String;)V");
             nextLocalIndex = 1;
+        }
+        // Funções com múltiplos retornos
+        else if (fun.retTypes.size() > 1) {
+            signature.append("[Ljava/lang/Object;");
+        }
+        // Funções com um único retorno
+        else if (!fun.retTypes.isEmpty()) {
+            signature.append(getJasminType(fun.retTypes.get(0)));
+        }
+        // Funções sem retorno
+        else {
+            signature.append("V");
         }
 
         if (isInsideData) {
             emitHeader(".method public " + signature.toString());
         } else {
-            if (fun.id.equals("main")) {
-                signature = new StringBuilder("main([Ljava/lang/String;)V");
-                nextLocalIndex = 1;
-            }
             emitHeader(".method public static " + signature.toString());
         }
 
@@ -154,82 +168,70 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
 
         fun.body.accept(this);
 
+        // Garantir que toda função tenha um retorno
         if (fun.retTypes.isEmpty()) {
             emit("return");
         }
 
         emitHeader(".end method");
+        this.currentFunction = null;
         return null;
     }
-
-    /**
-     * @brief Visita o comando de impressão gerando o código Jasmin correspondente.
-     *        Para isso verifica qual o tipo do que está sendo impresso.
-     */
 
     @Override
-    public Void visitCmdPrint(CmdPrint cmd) {
-        if (cmd.value instanceof ExpChar && ((ExpChar) cmd.value).value == '\n') {
-            emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
-            emit("invokevirtual java/io/PrintStream/println()V");
-            return null;
-        }
-
+public Void visitCmdPrint(CmdPrint cmd) {
+    // caso especial: '\n'
+    if (cmd.value instanceof ExpChar && ((ExpChar) cmd.value).value == '\n') {
         emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
-        cmd.value.accept(this);
-
-        Type typeToPrint = cmd.value.expType;
-        String descriptor = "";
-        if (typeToPrint.baseType.equals("Int")) {
-            descriptor = "I";
-        } else if (typeToPrint.baseType.equals("Float")) {
-            descriptor = "F";
-        } else if (typeToPrint.baseType.equals("Char")) {
-            descriptor = "C";
-        } else if (typeToPrint.baseType.equals("Bool")) {
-            cmd.value.accept(this);
-            String falseLabel = newLabel();
-            String endLabel = newLabel();
-
-            emit("ifeq " + falseLabel);
-
-            emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
-            emit("ldc \"true\"");
-            emit("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V");
-            emit("goto " + endLabel);
-
-            emitLabel(falseLabel);
-            emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
-            emit("ldc \"false\"");
-            emit("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V");
-
-            emitLabel(endLabel);
-
-            return null;
-        } else {
-            descriptor = "Ljava/lang/Object;";
-        }
-
-        emit("invokevirtual java/io/PrintStream/print(" + descriptor + ")V");
+        emit("invokevirtual java/io/PrintStream/println()V");
         return null;
     }
 
-    /**
-     * @brief Visita uma expressão de literal inteiro (ExpInt) e gera a instrução
-     *        'ldc' para carregar o valor constante na pilha.
-     */
+    Type typeToPrint = cmd.value.expType;
+
+    if (typeToPrint.baseType.equals("Bool")) {
+        // avalia a expressão UMA vez
+        cmd.value.accept(this);
+        String falseLabel = newLabel();
+        String endLabel = newLabel();
+        emit("ifeq " + falseLabel);
+
+        emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
+        emit("ldc \"true\"");
+        emit("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V");
+        emit("goto " + endLabel);
+
+        emitLabel(falseLabel);
+        emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
+        emit("ldc \"false\"");
+        emit("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V");
+
+        emitLabel(endLabel);
+        return null;
+    }
+
+    emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
+    cmd.value.accept(this);
+
+    String descriptor;
+    switch (typeToPrint.baseType) {
+        case "Int": descriptor = "I"; break;
+        case "Float": descriptor = "F"; break;
+        case "Char": descriptor = "C"; break;
+        default: descriptor = "Ljava/lang/Object;"; break;
+    }
+
+    emit("invokevirtual java/io/PrintStream/print(" + descriptor + ")V");
+    return null;
+}
+
+
     @Override
     public Void visitExpInt(ExpInt exp) {
         emit("ldc " + exp.value);
         return null;
     }
 
-    /**
-     * @brief Visita comando de atribuição (CmdAssign) e gera o código Jasmin
-     *        correspondente.
-     *        Esse comando tem alguns comportamentos diferentes de acordo com o tipo
-     *        de variável que está sendo trabalhada
-     */
     @Override
     public Void visitCmdAssign(CmdAssign cmd) {
         if (cmd.target instanceof LValueId) {
@@ -294,9 +296,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Converte um tipo da linguagem para o formato Jasmin correspondente.
-     */
     private String getJasminType(Type type) {
         if (type.arrayDim > 0) {
             return "[".repeat(type.arrayDim) + getJasminType(new Type(type.baseType, 0));
@@ -315,10 +314,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         }
     }
 
-    /**
-     * @brief Visita uma expressão de variável (ExpVar) e gera o código Jasmin
-     *        correspondente de acordo com o tipo da variável.
-     */
     @Override
     public Void visitExpVar(ExpVar expVar) {
         if (locals.containsKey(expVar.name)) {
@@ -352,10 +347,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita um bloco de comandos (CmdBlock) e gera o código Jasmin
-     *        correspondente.
-     */
     @Override
     public Void visitCmdBlock(CmdBlock cmd) {
         for (Cmd c : cmd.cmds) {
@@ -364,10 +355,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita a chamada de função (CmdCall) e gera o código Jasmin
-     *        correspondente.
-     */
     @Override
     public Void visitCmdCall(CmdCall cmd) {
         Fun funDef = theta.get(cmd.id);
@@ -379,41 +366,60 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
             arg.accept(this);
         }
 
-        StringBuilder signature = new StringBuilder();
-        signature.append(className).append("/").append(funDef.id).append("(");
+        StringBuilder sig = new StringBuilder();
+        sig.append(className).append("/").append(funDef.id).append("(");
         for (Param p : funDef.params) {
-            signature.append(getJasminType(p.type));
+            sig.append(getJasminType(p.type));
         }
-        signature.append(")");
-
+        sig.append(")");
         if (funDef.retTypes.isEmpty()) {
-            signature.append("V");
+            sig.append("V");
+        } else if (funDef.retTypes.size() > 1) {
+            sig.append("[Ljava/lang/Object;");
         } else {
-            signature.append(getJasminType(funDef.retTypes.get(0)));
+            sig.append(getJasminType(funDef.retTypes.get(0)));
         }
 
-        emit("invokestatic " + signature.toString());
+        emit("invokestatic " + sig.toString());
 
+        // Se não usa retorno → descarta
         if (!funDef.retTypes.isEmpty() && (cmd.rets == null || cmd.rets.isEmpty())) {
             emit("pop");
+            return null;
         }
 
+        // Atribui primeiro retorno (se existir)
         if (cmd.rets != null && !cmd.rets.isEmpty()) {
             LValue firstRet = cmd.rets.get(0);
             if (firstRet instanceof LValueId) {
                 String varName = ((LValueId) firstRet).id;
-                int localIndex = locals.get(varName);
-                emit("istore " + localIndex);
+                int localIndex = locals.computeIfAbsent(varName, k -> nextLocalIndex++);
+                Type t = ((LValueId) firstRet).expType;
+
+                if (t.arrayDim > 0 || delta.containsKey(t.baseType)) {
+                    emit("astore " + localIndex);
+                } else {
+                    switch (t.baseType) {
+                        case "Float":
+                            emit("fstore " + localIndex);
+                            break;
+                        case "Int":
+                        case "Char":
+                        case "Bool":
+                        default:
+                            emit("istore " + localIndex);
+                            break;
+                    }
+                }
+            } else {
+                // outros LValues podem exigir lógica adicional (campo/index etc.)
+                // por enquanto: se necessário, trate casos específicos aqui
             }
         }
 
         return null;
     }
 
-    /**
-     * @brief Visita uma expressão condicional (ExpCond) e gera o código Jasmin
-     *        correspondente.
-     */
     @Override
     public Void visitCmdIf(CmdIf cmd) {
         String elseLabel = newLabel();
@@ -436,10 +442,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita uma expressão de iteração (CmdIterate) e gera o código Jasmin
-     *        correspondente.
-     */
     @Override
     public Void visitCmdIterate(CmdIterate cmd) {
         if (cmd.condition instanceof ItCondExpr) {
@@ -566,9 +568,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * Visita comando de leitura (CmdRead) e gera código Jasmin correspondente
-     */
     @Override
     public Void visitCmdRead(CmdRead cmd) {
         if (cmd.lvalue instanceof LValueId) {
@@ -630,9 +629,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita comando de retorno (CmdReturn) e gera o código Jasmin
-     */
     @Override
     public Void visitCmdReturn(CmdReturn cmd) {
         if (cmd.values.isEmpty()) {
@@ -640,25 +636,65 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
             return null;
         }
 
-        Exp returnValue = cmd.values.get(0);
-        returnValue.accept(this);
-
-        Type returnType = returnValue.expType;
-
-        if (returnType.isReference() || returnType.isNull()) {
+        // múltiplos retornos → Object[]
+        if (currentFunction != null && currentFunction.retTypes.size() > 1) {
+            emit("bipush " + cmd.values.size());
+            emit("anewarray java/lang/Object");
+            for (int i = 0; i < cmd.values.size(); i++) {
+                emit("dup");
+                emit("bipush " + i);
+                Exp valueExp = cmd.values.get(i);
+                valueExp.accept(this);
+                switch (valueExp.expType.baseType) {
+                    case "Int":
+                        emit("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;");
+                        break;
+                    case "Char":
+                        emit("invokestatic java/lang/Character/valueOf(C)Ljava/lang/Character;");
+                        break;
+                    case "Bool":
+                        emit("invokestatic java/lang/Boolean/valueOf(Z)Ljava/lang/Boolean;");
+                        break;
+                    case "Float":
+                        emit("invokestatic java/lang/Float/valueOf(F)Ljava/lang/Float;");
+                        break;
+                }
+                emit("aastore");
+            }
             emit("areturn");
-        } else if (returnType.isFloat()) {
-            emit("freturn");
-        } else {
-            emit("ireturn");
+            return null;
         }
+
+        // retorno simples
+        if (currentFunction != null && currentFunction.retTypes.size() == 1) {
+            Exp returnValue = cmd.values.get(0);
+            returnValue.accept(this);
+
+            Type t = currentFunction.retTypes.get(0);
+            if (t.arrayDim > 0 || delta.containsKey(t.baseType)) {
+                emit("areturn");
+            } else {
+                switch (t.baseType) {
+                    case "Int":
+                    case "Char":
+                    case "Bool":
+                        emit("ireturn");
+                        break;
+                    case "Float":
+                        emit("freturn");
+                        break;
+                    default:
+                        emit("areturn");
+                }
+            }
+            return null;
+        }
+
+        // sem tipo (void)
+        emit("return");
         return null;
     }
 
-    /**
-     * @brief Visita uma definição de tipo de dados (Data) e gera o código Jasmin
-     * @hidden Essa funcionanlidade não funciona corretamente
-     */
     @Override
     public Void visitData(Data data) {
         data.accept(this);
@@ -703,11 +739,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita uma definição de tipo de dados (Data) e gera o código Jasmin
-     *        correspondente.
-     * @hidden Essa funcionalidade não funciona corretamente
-     */
     @Override
     public Void visitDataRegular(DataRegular data) {
         emitHeader("\n; --- Definição da classe para o tipo de dados: " + data.name + " ---");
@@ -750,10 +781,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita uma expressão de campo (ExpField) e gera o código Jasmin
-     *        correspondente.
-     */
     @Override
     public Void visitExpField(ExpField exp) {
         exp.target.accept(this);
@@ -794,9 +821,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Função auxiliar para lidar com expressões booleanas
-     */
     private Void handleBooleanShortCircuit(ExpBinOp exp) {
         String endLabel = newLabel();
 
@@ -817,10 +841,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita expressões binárias (como somas, subtrações e comparações) e
-     *        gera o código Jasmin correspondente.
-     */
     @Override
     public Void visitExpBinOp(ExpBinOp exp) {
 
@@ -907,10 +927,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita uma expressão booleana (ExpBool) e gera o código Jasmin
-     *        correspondente.
-     */
     @Override
     public Void visitExpBool(ExpBool exp) {
         if (exp.value) {
@@ -921,150 +937,148 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita uma chamada de função (ExpCall) e gera o código Jasmin
-     *        correspondente.
-     */
     @Override
     public Void visitExpCall(ExpCall exp) {
-        Fun funDef = theta.get(exp.id);
-        if (funDef == null) {
-            throw new RuntimeException("Erro do gerador: função '" + exp.id + "' não encontrada.");
-        }
-
         for (Exp arg : exp.args) {
             arg.accept(this);
         }
 
+        Fun funDef = theta.get(exp.id);
+        if (funDef == null) {
+            throw new RuntimeException("Função não definida chamada: " + exp.id);
+        }
+
         StringBuilder signature = new StringBuilder();
-        signature.append(className).append("/").append(funDef.id).append("(");
+        signature.append("(");
         for (Param p : funDef.params) {
             signature.append(getJasminType(p.type));
         }
         signature.append(")");
 
         if (funDef.retTypes.isEmpty()) {
-            throw new RuntimeException("Função '" + exp.id + "' sem valor de retorno usada em uma expressão.");
+            signature.append("V");
+        } else if (funDef.retTypes.size() > 1) {
+            signature.append("[Ljava/lang/Object;");
         } else {
             signature.append(getJasminType(funDef.retTypes.get(0)));
         }
 
-        emit("invokestatic " + signature.toString());
+        emit("    invokestatic " + className + "/" + exp.id + signature.toString());
 
         return null;
     }
 
-    /**
-     * @brief Visita chamada indexada de funções e gera o código Jasmin
-     *        correspondente.
-     * @hiden Essa funcionalidade não funciona direito
-     */
     @Override
     public Void visitExpCallIndexed(ExpCallIndexed exp) {
-        exp.call.accept(this);
+        exp.call.accept(this); // empilha o array retornado
+        exp.index.accept(this); // empilha o índice
 
-        Fun fun = theta.get(exp.call.id);
-        if (fun == null) {
-            throw new RuntimeException("Função '" + exp.call.id + "' não encontrada.");
+        Type elemType = exp.expType;
+
+        // Tenta detectar múltiplos retornos (Object[])
+        boolean isMultiRet = false;
+        if (exp.call instanceof ExpCall) {
+            Fun f = theta.get(((ExpCall) exp.call).id);
+            isMultiRet = (f != null && f.retTypes.size() > 1);
         }
 
-        List<Type> returnTypes = fun.retTypes;
-        int targetIndex = 0;
-
-        if (exp.index instanceof ExpInt) {
-            targetIndex = ((ExpInt) exp.index).value;
-        }
-
-        if (targetIndex < 0 || targetIndex >= returnTypes.size()) {
-            throw new RuntimeException("Índice de retorno inválido: " + targetIndex);
-        }
-
-        Type targetType = returnTypes.get(targetIndex);
-
-        if (returnTypes.size() > 1) {
-            List<Integer> tempVarIndices = new ArrayList<>();
-            for (int i = 0; i < returnTypes.size(); i++) {
-                Type returnType = returnTypes.get(i);
-                int tempVarIndex = nextLocalIndex++;
-                tempVarIndices.add(tempVarIndex);
-
-                if (returnType.isFloat()) {
-                    emit("fstore " + tempVarIndex);
-                } else if (returnType.isReference()) {
-                    emit("astore " + tempVarIndex);
-                } else {
-                    emit("istore " + tempVarIndex);
-                }
+        if (isMultiRet) {
+            // Object[] → aaload + (unboxing se necessário)
+            emit("aaload");
+            switch (elemType.baseType) {
+                case "Int":
+                    emit("checkcast java/lang/Integer");
+                    emit("invokevirtual java/lang/Integer/intValue()I");
+                    break;
+                case "Char":
+                    emit("checkcast java/lang/Character");
+                    emit("invokevirtual java/lang/Character/charValue()C");
+                    break;
+                case "Bool":
+                    emit("checkcast java/lang/Boolean");
+                    emit("invokevirtual java/lang/Boolean/booleanValue()Z");
+                    break;
+                case "Float":
+                    emit("checkcast java/lang/Float");
+                    emit("invokevirtual java/lang/Float/floatValue()F");
+                    break;
+                default:
+                    emit("checkcast " + getJasminType(elemType).replace(";", ""));
+                    break;
             }
-
-            int desiredVarIndex = tempVarIndices.get(targetIndex);
-            if (targetType.isFloat()) {
-                emit("fload " + desiredVarIndex);
-            } else if (targetType.isReference()) {
-                emit("aload " + desiredVarIndex);
-            } else {
-                emit("iload " + desiredVarIndex);
-            }
+            return null;
         }
 
+        // Caso geral: indexando um array comum
+        // Se o elemento é primitivo → xaload apropriado
+        if (elemType.arrayDim == 0 && !delta.containsKey(elemType.baseType)) {
+            switch (elemType.baseType) {
+                case "Int":
+                case "Bool":
+                    emit("iaload");
+                    break;
+                case "Char":
+                    emit("caload");
+                    break;
+                case "Float":
+                    emit("faload");
+                    break;
+                default:
+                    emit("aaload");
+                    break;
+            }
+            return null;
+        }
+
+        // Elemento é referência (objeto ou outro array)
+        emit("aaload");
         return null;
     }
 
-    /**
-     * @brief Visita uma expressão de caractere (ExpChar) e gera o código Jasmin
-     *        correspondente.
-     */
     @Override
     public Void visitExpChar(ExpChar exp) {
         emit("ldc " + (int) exp.value);
         return null;
     }
 
-    /**
-     * @brief Visita uma exmpressão de float (ExpFloat) e gera o código Jasmin
-     *        correspondente
-     */
     @Override
     public Void visitExpFloat(ExpFloat exp) {
         emit("ldc " + exp.value);
         return null;
     }
 
-    /**
-     * @brief Visita expressão e gera o código Jasmin correspondente.
-     */
     @Override
     public Void visitExpIndex(ExpIndex exp) {
         exp.target.accept(this);
         exp.index.accept(this);
 
-        Type resultType = exp.expType;
+        Type elemType = exp.expType;
 
-        if (resultType.arrayDim > 0 || delta.containsKey(resultType.baseType)) {
-            emit("aaload");
-        } else {
-            switch (resultType.baseType) {
+        // elemento primitivo
+        if (elemType.arrayDim == 0 && !delta.containsKey(elemType.baseType)) {
+            switch (elemType.baseType) {
                 case "Int":
                 case "Bool":
                     emit("iaload");
                     break;
-                case "Float":
-                    emit("faload");
-                    break;
                 case "Char":
                     emit("caload");
                     break;
+                case "Float":
+                    emit("faload");
+                    break;
                 default:
-                    throw new RuntimeException("Tipo primitivo não tratado no acesso ao array: " + resultType.baseType);
+                    emit("aaload");
+                    break;
             }
+            return null;
         }
+
+        // elemento é referência
+        emit("aaload");
         return null;
     }
 
-    /**
-     * @brief Visita uma expressão de nova alocação (ExpNew) e gera o código Jasmin
-     *        correspondente.
-     */
     @Override
     public Void visitExpNew(ExpNew exp) {
         if (exp.size != null) {
@@ -1114,10 +1128,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita expressões unárias como negação e gera o código Jasmin
-     *        correspondente.
-     */
     @Override
     public Void visitExpUnaryOp(ExpUnaryOp exp) {
         exp.exp.accept(this);
@@ -1170,9 +1180,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         return null;
     }
 
-    /**
-     * @brief Visita uma expressão de campo (LValueField) e gera o código Jasmin correspondente.
-     */
     @Override
     public Void visitLValueField(LValueField lValueField) {
         lValueField.target.accept(this);

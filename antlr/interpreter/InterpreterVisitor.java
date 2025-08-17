@@ -19,7 +19,8 @@ public class InterpreterVisitor implements Visitor<Object> {
     private final Memory memory = new Memory();
     private final Scanner scanner = new Scanner(System.in);
     private List<Value> returnValues = new ArrayList<>(); // Lista para armazenar valores retornados por funções
-    // Deve ficar aqui, pois é temporário e só existe enquanto estamos processando uma função
+    // Deve ficar aqui, pois é temporário e só existe enquanto estamos processando
+    // uma função
 
     public InterpreterVisitor() {
         memory.pushScope();// Inicializa o escopo global
@@ -36,21 +37,21 @@ public class InterpreterVisitor implements Visitor<Object> {
         Value valueToAssign = (Value) cmd.expression.accept(this);
 
         if (cmd.target instanceof LValueIndex) {
-            // Atribuição em array
             LValueIndex lvalIndex = (LValueIndex) cmd.target;
-            String arrayName = extractVarName(lvalIndex.target);
-            Value arrayVal = (Value) memory.lookup(arrayName);
+
+            Value arrayVal = (Value) lvalIndex.target.accept(this);
             Value indexVal = (Value) lvalIndex.index.accept(this);
 
             if (arrayVal instanceof ArrayValue && indexVal instanceof IntValue) {
                 int index = ((IntValue) indexVal).getValue();
                 ((ArrayValue) arrayVal).set(index, valueToAssign);
             } else {
-                throw new RuntimeException("Atribuição inválida em array.");
+                throw new RuntimeException(
+                        "Atribuição inválida em array. O alvo não é um array ou o índice não é um inteiro.");
             }
 
         } else if (cmd.target instanceof LValueField) {
-            // Atribuição em campo de data
+            // Atribuição em campo de data (ex: m.numStates = ...)
             LValueField lvalField = (LValueField) cmd.target;
             Value objVal = (Value) lvalField.target.accept(this);
 
@@ -61,9 +62,9 @@ public class InterpreterVisitor implements Visitor<Object> {
             ((DataValue) objVal).setField(lvalField.field, valueToAssign);
 
         } else if (cmd.target instanceof LValueId) {
-            // Atribuição direta a variável
+            // Atribuição direta a variável (ex: i = 0)
             String varName = ((LValueId) cmd.target).id;
-            memory.currentScope().put(varName, valueToAssign);
+            memory.currentScope().put(varName, valueToAssign); // Usando updateVar para consistência
 
         } else {
             throw new UnsupportedOperationException("Tipo de atribuição não suportado.");
@@ -71,7 +72,6 @@ public class InterpreterVisitor implements Visitor<Object> {
 
         return null;
     }
-
 
     @Override
     public Object visitCmdBlock(CmdBlock cmd) {
@@ -100,33 +100,29 @@ public class InterpreterVisitor implements Visitor<Object> {
 
         memory.pushScope(newScope);
 
-        this.returnValues.clear();
-
-        List<Value> returned = null;
+        List<Value> returnedValues = new ArrayList<>(); // Inicializa a lista como vazia
         try {
-            // Executa o corpo da função UMA vez e captura valores retornados via exceção
             funDef.body.accept(this);
         } catch (ReturnException re) {
-            returned = re.getValues();
+            returnedValues = re.getValues(); // Atribui os valores retornados
         } finally {
             memory.popScope();
         }
 
         if (cmd.rets != null && !cmd.rets.isEmpty()) {
-            if (returned == null) {
-                throw new RuntimeException("Função não retornou valores mas chamador esperava " + cmd.rets.size());
-            }
-            if (returned.size() != cmd.rets.size()) {
+            if (returnedValues.size() != cmd.rets.size()) {
                 throw new RuntimeException("Número de variáveis de retorno (" + cmd.rets.size()
-                        + ") é diferente do número de valores retornados (" + returned.size() + ").");
+                        + ") é diferente do número de valores retornados (" + returnedValues.size() + ") pela função '"
+                        + cmd.id + "'.");
             }
             for (int i = 0; i < cmd.rets.size(); i++) {
                 LValue targetLval = cmd.rets.get(i);
-                Value returnedValue = returned.get(i);
+                Value returnedValue = returnedValues.get(i);
                 if (targetLval instanceof LValueId) {
                     memory.currentScope().put(((LValueId) targetLval).id, returnedValue);
                 } else {
-                    throw new UnsupportedOperationException("Atribuição de retorno múltiplo só suporta variáveis simples.");
+                    throw new UnsupportedOperationException(
+                            "Atribuição de retorno múltiplo só suporta variáveis simples.");
                 }
             }
         }
@@ -146,48 +142,43 @@ public class InterpreterVisitor implements Visitor<Object> {
     }
 
     @Override
-public Object visitCmdIterate(CmdIterate cmd) {
-    if (cmd.condition instanceof ItCondLabelled itCond) {
-        // Laço com rótulo (ex: iterate(i: v))
-        Value iterable = (Value) itCond.expression.accept(this);
+    public Object visitCmdIterate(CmdIterate cmd) {
+        if (cmd.condition instanceof ItCondLabelled itCond) {
+            // Laço com rótulo (ex: iterate(i: v))
+            Value iterable = (Value) itCond.expression.accept(this);
 
-        if (iterable instanceof ArrayValue array) {
-            for (Value element : array.getValues()) {
-                memory.currentScope().put(itCond.label, element);
-                cmd.body.accept(this);
+            if (iterable instanceof ArrayValue array) {
+                for (Value element : array.getValues()) {
+                    memory.currentScope().put(itCond.label, element);
+                    cmd.body.accept(this);
+                }
+            } else if (iterable instanceof IntValue intVal) {
+                int max = intVal.getValue();
+                for (int i = 0; i < max; i++) {
+                    memory.currentScope().put(itCond.label, new IntValue(i));
+                    cmd.body.accept(this);
+                }
+            } else {
+                throw new UnsupportedOperationException("'iterate' com rótulo só suporta arrays ou inteiros.");
             }
-        } else if (iterable instanceof IntValue intVal) {
-            int max = intVal.getValue();
-            for (int i = 0; i < max; i++) {
-                memory.currentScope().put(itCond.label, new IntValue(i));
-                cmd.body.accept(this);
-            }
-        } else {
-            throw new UnsupportedOperationException("'iterate' com rótulo só suporta arrays ou inteiros.");
-        }
-    } else if (cmd.condition instanceof ItCondExpr itCondExpr) {
-        // Laço sem rótulo (ex: iterate(nlines))
-        Value iterable = (Value) itCondExpr.expression.accept(this);
+        } else if (cmd.condition instanceof ItCondExpr itCondExpr) {
+            // Laço sem rótulo (ex: iterate(nlines))
+            Value iterable = (Value) itCondExpr.expression.accept(this);
 
-        if (iterable instanceof IntValue intVal) {
-            int max = intVal.getValue();
-            memory.pushScope();
-            try {
+            if (iterable instanceof IntValue intVal) {
+                int max = intVal.getValue();
+                // CORREÇÃO: pushScope e popScope foram removidos daqui.
                 for (int i = 0; i < max; i++) {
                     cmd.body.accept(this);
                 }
-            } finally {
-                memory.popScope();
+            } else {
+                throw new UnsupportedOperationException("'iterate' sem rótulo só suporta inteiros.");
             }
         } else {
-            throw new UnsupportedOperationException("'iterate' sem rótulo só suporta inteiros.");
+            throw new UnsupportedOperationException("Tipo de condição de iterate não suportado.");
         }
-    } else {
-        throw new UnsupportedOperationException("Tipo de condição de iterate não suportado.");
+        return null;
     }
-    return null;
-}
-
 
     @Override
     public Object visitCmdPrint(CmdPrint cmd) {
@@ -216,10 +207,10 @@ public Object visitCmdIterate(CmdIterate cmd) {
     }
 
     // public class ReturnException extends RuntimeException {
-    //     public final List<Value> values;
-    //     public ReturnException(List<Value> values) {
-    //         this.values = values;
-    //     }
+    // public final List<Value> values;
+    // public ReturnException(List<Value> values) {
+    // this.values = values;
+    // }
     // }
 
     @Override
@@ -355,14 +346,14 @@ public Object visitCmdIterate(CmdIterate cmd) {
         }
 
         if ((exp.op.equals("&&") || exp.op.equals("||")) &&
-            (left instanceof IntValue || left instanceof BoolValue) &&
-            (right instanceof IntValue || right instanceof BoolValue)) {
+                (left instanceof IntValue || left instanceof BoolValue) &&
+                (right instanceof IntValue || right instanceof BoolValue)) {
 
             boolean l = (left instanceof IntValue) ? ((IntValue) left).getValue() != 0
-                                                : ((BoolValue) left).getValue();
+                    : ((BoolValue) left).getValue();
 
             boolean r = (right instanceof IntValue) ? ((IntValue) right).getValue() != 0
-                                                : ((BoolValue) right).getValue();
+                    : ((BoolValue) right).getValue();
 
             return new BoolValue(exp.op.equals("&&") ? (l && r) : (l || r));
         }
@@ -370,7 +361,6 @@ public Object visitCmdIterate(CmdIterate cmd) {
         throw new RuntimeException("Operação binária não suportada: " + left.getClass().getSimpleName() + " " + exp.op
                 + " " + right.getClass().getSimpleName());
     }
-
 
     @Override
     public Object visitExpBool(ExpBool exp) {
@@ -407,7 +397,8 @@ public Object visitCmdIterate(CmdIterate cmd) {
         }
 
         if (returned == null) {
-            returned = new ArrayList<>();
+            throw new RuntimeException(
+                    "A função '" + exp.id + "' foi usada em uma expressão mas não retornou um valor.");
         }
 
         ArrayValue arrayValue = new ArrayValue(returned.size());
@@ -417,7 +408,6 @@ public Object visitCmdIterate(CmdIterate cmd) {
 
         return arrayValue;
     }
-
 
     @Override
     public Object visitExpCallIndexed(ExpCallIndexed exp) {
@@ -445,6 +435,10 @@ public Object visitCmdIterate(CmdIterate cmd) {
     public Object visitExpField(ExpField exp) {
         Value target = (Value) exp.target.accept(this);
 
+        if (target == null || target instanceof NullValue) {
+            return new NullValue();
+        }
+
         if (target instanceof DataValue) {
             return ((DataValue) target).getField(exp.field);
         }
@@ -464,7 +458,12 @@ public Object visitCmdIterate(CmdIterate cmd) {
 
         if (target instanceof ArrayValue && indexVal instanceof IntValue) {
             int index = ((IntValue) indexVal).getValue();
-            return ((ArrayValue) target).get(index);
+            Value result = ((ArrayValue) target).get(index);
+
+            if (result == null) {
+                return new NullValue();
+            }
+            return result;
         }
         throw new RuntimeException("Tentativa de indexar um valor que não é um array com um índice inteiro.");
     }
@@ -583,7 +582,12 @@ public Object visitCmdIterate(CmdIterate cmd) {
 
         if (arrayVal instanceof ArrayValue && indexVal instanceof IntValue) {
             int index = ((IntValue) indexVal).getValue();
-            return ((ArrayValue) arrayVal).get(index);
+            Value result = ((ArrayValue) arrayVal).get(index);
+
+            if (result == null) {
+                return new NullValue();
+            }
+            return result;
         }
         throw new RuntimeException("Indexação inválida.");
     }

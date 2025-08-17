@@ -10,9 +10,16 @@ import java.util.List;
 
 public class CmdBlock extends Cmd implements DotPrintable {
     public final List<Cmd> cmds;
+    public final int line;
 
-    public CmdBlock(List<Cmd> cmds) {
+    public CmdBlock(List<Cmd> cmds, int line) {
         this.cmds = cmds;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return cmds.isEmpty() ? -1 : cmds.get(0).getLine();
     }
 
     @Override

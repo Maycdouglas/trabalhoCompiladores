@@ -12,8 +12,8 @@ public class DataAbstract extends Data {
     public final List<Decl> declarations;
     public final List<Fun> functions;
 
-    public DataAbstract(String name, List<Decl> declarations, List<Fun> functions) {
-        super(name);
+    public DataAbstract(String name, List<Decl> declarations, List<Fun> functions, int line) {
+        super(name, line);
         this.declarations = declarations;
         this.functions = functions;
     }
@@ -31,6 +31,19 @@ public class DataAbstract extends Data {
             sb.append(f.toDot(id));
         }
         return sb.toString();
+    }
+
+    public boolean hasFunction(String funName) {
+        for (Fun fun : functions) {
+            if (fun.id.equals(funName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<Decl> getDeclarations() {
+        return this.declarations;
     }
 
     @Override

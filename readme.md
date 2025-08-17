@@ -77,7 +77,7 @@ Linux:
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/fib.lan`
    - CERTO
 3. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/numeric.lan`
-   - ERRADO
+   - ERRADO (RESOLVIDO)
      - primeira impressão está errada
        - errado
          - 2.0
@@ -91,7 +91,7 @@ Linux:
    - CERTO
      - AO MENOS PARA MIM ESTÁ
 6. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/function/sort.lan`
-   - ERRADO
+   - ERRADO (RESOLVIDO)
      - imprime primeira linha corretamente, mas a segunda linha fica igual
      - {123,345,21,12,0,94,1,6,3,2}
      - {123,345,21,12,0,94,1,6,3,2}
@@ -103,14 +103,16 @@ Linux:
 
 1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/AFD.lan`
    - Exception in thread "main" java.lang.UnsupportedOperationException: Tipo de atribuição não suportado.
+   (RESOLVIDO)
 2. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/semantica/certo/full/linked.lan`
    - CERTO
 
 #### TYPES - SIMPLE
 
-1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/simple/scope.lan`
+1. `java -cp ".;antlr-4.8-complete.jar" Main ../Lang/types/simple/scope.lan` (ERRADO)
 
 #### TYPES - FUNCTION
+
 
 #### TYPES - FULL
 

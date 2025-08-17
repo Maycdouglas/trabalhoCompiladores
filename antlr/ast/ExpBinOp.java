@@ -11,11 +11,18 @@ public class ExpBinOp extends Exp {
     public final String op;
     public final Exp left;
     public final Exp right;
+    public final int line;
 
-    public ExpBinOp(String op, Exp left, Exp right) {
+    public ExpBinOp(String op, Exp left, Exp right, int line) {
         this.op = op;
         this.left = left;
         this.right = right;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override
@@ -34,4 +41,3 @@ public class ExpBinOp extends Exp {
         return visitor.visitExpBinOp(this);
     }
 }
-

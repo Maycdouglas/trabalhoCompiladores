@@ -10,10 +10,17 @@ import interpreter.Visitor;
 public class ExpUnaryOp extends Exp {
     public final String op;
     public final Exp exp;
+    public final int line;
 
-    public ExpUnaryOp(String op, Exp exp) {
+    public ExpUnaryOp(String op, Exp exp, int line) {
         this.op = op;
         this.exp = exp;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

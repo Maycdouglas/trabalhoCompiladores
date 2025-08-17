@@ -9,9 +9,16 @@ import interpreter.Visitor;
 
 public class ExpFloat extends Exp {
     public final float value;
+    public final int line;
 
-    public ExpFloat(float value) {
+    public ExpFloat(float value, int line) {
         this.value = value;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

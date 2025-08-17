@@ -10,10 +10,17 @@ import interpreter.Visitor;
 public class LValueField extends LValue {
     public final LValue target;
     public final String field;
+    public final int line;
 
-    public LValueField(LValue target, String field) {
+    public LValueField(LValue target, String field, int line) {
         this.target = target;
         this.field = field;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

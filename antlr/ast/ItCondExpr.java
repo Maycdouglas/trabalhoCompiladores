@@ -9,9 +9,16 @@ import interpreter.Visitor;
 
 public class ItCondExpr extends ItCond {
     public final Exp expression;
+    public final int line;
 
-    public ItCondExpr(Exp expression) {
+    public ItCondExpr(Exp expression, int line) {
         this.expression = expression;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

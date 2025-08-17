@@ -14,15 +14,22 @@ public class Fun implements Def, DotPrintable {
     public final List<Param> params;
     public final List<Type> retTypes; // pode ser vazio
     public final Cmd body;
+    public final int line;
 
-    public Fun(String id, List<Param> params, List<Type> retTypes, Cmd body) {
+    public Fun(String id, List<Param> params, List<Type> retTypes, Cmd body, int line) {
         this.id = id;
         this.params = params;
         this.retTypes = retTypes;
+        this.line = line;
         this.body = body;
     }
 
-     @Override
+    @Override
+    public int getLine() {
+        return this.line;
+    }
+
+    @Override
     public String toDot(String parentId) {
         String idNode = "Fun" + hashCode();
         StringBuilder sb = new StringBuilder();

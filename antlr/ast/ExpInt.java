@@ -9,13 +9,15 @@ import interpreter.Visitor;
 
 public class ExpInt extends Exp implements DotPrintable {
     public final int value;
+    public final int line;
 
-    public ExpInt(int value) {
+    public ExpInt(int value, int line) {
         this.value = value;
+        this.line = line;
     }
 
-    public int getValue(){
-        return this.value;
+    public int getLine() {
+        return this.line;
     }
 
     @Override

@@ -10,9 +10,17 @@ import interpreter.Visitor;
 public class ExpIndex extends Exp {
     public Exp target;
     public Exp index;
-    public ExpIndex(Exp target, Exp index) {
+    public final int line;
+
+    public ExpIndex(Exp target, Exp index, int line) {
         this.target = target;
         this.index = index;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

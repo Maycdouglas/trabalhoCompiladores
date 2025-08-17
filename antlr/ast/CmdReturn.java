@@ -10,9 +10,16 @@ import java.util.List;
 
 public class CmdReturn extends Cmd implements DotPrintable {
     public final List<Exp> values;
+    public final int line;
 
-    public CmdReturn(List<Exp> values) {
+    public CmdReturn(List<Exp> values, int line) {
         this.values = values;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return line;
     }
 
     @Override

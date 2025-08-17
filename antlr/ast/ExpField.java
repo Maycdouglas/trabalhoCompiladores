@@ -10,9 +10,17 @@ import interpreter.Visitor;
 public class ExpField extends Exp {
     public Exp target;
     public String field;
-    public ExpField(Exp target, String field) {
+    public final int line;
+
+    public ExpField(Exp target, String field, int line) {
         this.target = target;
         this.field = field;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

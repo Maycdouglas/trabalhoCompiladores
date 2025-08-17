@@ -9,9 +9,16 @@ import interpreter.Visitor;
 
 public class ExpBool extends Exp {
     public final boolean value;
+    public final int line;
 
-    public ExpBool(boolean value) {
+    public ExpBool(boolean value, int line) {
         this.value = value;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

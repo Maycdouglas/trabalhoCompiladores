@@ -11,9 +11,10 @@ public class LValueIndex extends LValue {
     public final LValue target;
     public final Exp index;
 
-    public LValueIndex(LValue target, Exp index) {
+    public LValueIndex(LValue target, Exp index, int line) {
         this.target = target;
         this.index = index;
+        this.line = line;
     }
 
     @Override

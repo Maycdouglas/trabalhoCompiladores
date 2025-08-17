@@ -10,10 +10,17 @@ import interpreter.Visitor;
 public class ExpNew extends Exp {
     public final Type type;
     public final Exp size; // pode ser null se não houver [exp]
+    public final int line;
 
-    public ExpNew(Type type, Exp size) {
+    public ExpNew(Type type, Exp size, int line) {
         this.type = type;
         this.size = size;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

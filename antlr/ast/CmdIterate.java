@@ -10,10 +10,17 @@ import interpreter.Visitor;
 public class CmdIterate extends Cmd implements DotPrintable {
     public final ItCond condition;
     public final Cmd body;
+    public final int line;
 
-    public CmdIterate(ItCond condition, Cmd body) {
+    public CmdIterate(ItCond condition, Cmd body, int line) {
         this.condition = condition;
         this.body = body;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return line;
     }
 
     @Override

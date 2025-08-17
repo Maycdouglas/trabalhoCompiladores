@@ -11,10 +11,17 @@ import interpreter.Visitor;
 public class Param implements DotPrintable, ASTNode {
     public final String id;
     public final Type type;
+    public final int line;
 
-    public Param(String id, Type type) {
+    public Param(String id, Type type, int line) {
         this.id = id;
         this.type = type;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override

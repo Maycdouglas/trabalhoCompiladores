@@ -9,9 +9,16 @@ import interpreter.Visitor;
 
 public class CmdPrint extends Cmd implements DotPrintable {
     public final Exp value;
+    public final int line;
 
-    public CmdPrint(Exp value) {
+    public CmdPrint(Exp value, int line) {
         this.value = value;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return line;
     }
 
     @Override

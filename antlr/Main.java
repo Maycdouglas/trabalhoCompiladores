@@ -11,24 +11,24 @@ import semant.SemanticVisitor;
 import jasmin.JasminGeneratorVisitor;
 import codegen.JavaCodeGeneratorVisitor;
 
-// import codegen.JasminGeneratorVisitor; // Descomentar quando implementar
-
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Stack;
 
 /**
  * @brief Classe principal que orquestra as fases do compilador.
  */
 public class Main {
 
-    // --- Campos Estáticos para Armazenar os Resultados de Cada Fase ---
     private static langLexer lexer;
     private static CommonTokenStream tokens;
     private static langParser parser;
@@ -56,7 +56,6 @@ public class Main {
         errorListener = new SyntaxErrorListener();
 
         try {
-            // Execução do analisador léxico e sintático, necessária em todas as diretivas
             lexer(filePath);
             parser();
 
@@ -65,7 +64,6 @@ public class Main {
                 return;
             }
 
-            // Geração de árvore sintática
             ast();
 
             switch (directive) {
@@ -85,6 +83,9 @@ public class Main {
                     semant();
                     sourceGen(filePath, outputDir);
                     break;
+                case "-dot":
+                    printParseTreeDot(tree, parser, "" + getBaseName(filePath) + ".dot");
+                    break;
                 default:
                     System.err.println("Diretiva desconhecida: " + directive);
                     System.exit(1);
@@ -92,7 +93,6 @@ public class Main {
 
         } catch (RuntimeException e) {
             System.out.println("reject");
-            // Imprime a mensagem de erro específica da fase que falhou
             System.err.println(e.getMessage());
         }
     }
@@ -145,10 +145,11 @@ public class Main {
     public static void semant() {
         System.out.println("--- Executando Análise Semântica ---");
         semanticVisitor = new SemanticVisitor();
-        try {
-            ast.accept(semanticVisitor);
-        } catch (RuntimeException e) {
-            throw new RuntimeException("Erro Semântico: " + e.getMessage());
+        ast.accept(semanticVisitor);
+        if (semanticVisitor.hasErrors()) {
+            System.out.println("reject"); // Sinaliza que o código foi rejeitado
+            semanticVisitor.printErrors(); // Imprime todos os erros encontrados
+            System.exit(1); // Termina a execução
         }
     }
 
@@ -184,6 +185,18 @@ public class Main {
         System.out.println("Código Jasmin gerado com sucesso em: " + outFileName);
     }
 
+    public static void printParseTreeDot(ParseTree tree, langParser parser, String outputPath) throws IOException {
+        try (PrintWriter out = new PrintWriter(outputPath)) {
+            out.println("digraph AST {");
+            out.print(ast.toDot(null));
+            out.println("}");
+            System.out.println("Arquivo " + outputPath + " gerado com sucesso.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
     /**
      * @brief Fase 5c: Geração de Código Source-to-Source.
      * Executa um visitor para gerar código .java a partir da AST.
@@ -210,7 +223,7 @@ public class Main {
     private static String getBaseName(String filePath) {
         int lastSlash = filePath.lastIndexOf('/');
         if (lastSlash == -1) {
-            lastSlash = filePath.lastIndexOf('\\'); // Para compatibilidade com Windows
+            lastSlash = filePath.lastIndexOf('\\');
         }
         int lastDot = filePath.lastIndexOf('.');
         if (lastDot == -1 || lastDot < lastSlash) {

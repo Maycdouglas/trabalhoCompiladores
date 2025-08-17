@@ -10,10 +10,17 @@ import interpreter.Visitor;
 public class CmdAssign extends Cmd implements DotPrintable {
     public final LValue target;
     public final Exp expression;
+    public final int line;
 
-    public CmdAssign(LValue target, Exp expression) {
+    public CmdAssign(LValue target, Exp expression, int line) {
         this.target = target;
         this.expression = expression;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return target.getLine();
     }
 
     @Override
@@ -32,4 +39,3 @@ public class CmdAssign extends Cmd implements DotPrintable {
         return visitor.visitCmdAssign(this);
     }
 }
-

@@ -11,10 +11,17 @@ import java.util.List;
 public class ExpCall extends Exp {
     public final String id;
     public final List<Exp> args;
+    public final int line;
 
-    public ExpCall(String id, List<Exp> args) {
+    public ExpCall(String id, List<Exp> args, int line) {
         this.id = id;
         this.args = args;
+        this.line = line;
+    }
+
+    @Override
+    public int getLine() {
+        return this.line;
     }
 
     @Override
