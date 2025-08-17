@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.List;
+import java.util.HashMap;
 
 public class JavaCodeGeneratorVisitor implements Visitor<String> {
 
@@ -22,6 +23,8 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     private Map<String, Data> allDataTypes = new java.util.HashMap<>();
     // --- NOVO: Flag para saber se estamos dentro de uma classe 'data' ---
     private boolean isInsideDataMethod = false;
+    // --- NOVO: Mapa para renomear variáveis sombreadas ---
+    private Map<String, String> remappedVariables = new HashMap<>();
     
     // --- NOVO: Variável para controlar a indentação ---
     private int indentLevel = 0;
@@ -164,7 +167,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return target + " = " + expression + ";\n";
     }
 
-// --- visitCmdIterate CORRIGIDO com bloco de escopo ---
+// --- visitCmdIterate CORRIGIDO com renomeação de variável ---
     @Override
     public String visitCmdIterate(CmdIterate cmd) {
         StringBuilder sb = new StringBuilder();
@@ -178,48 +181,51 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             sb.append(indent()).append("}\n");
         } else if (cmd.condition instanceof ItCondLabelled) {
             ItCondLabelled cond = (ItCondLabelled) cmd.condition;
-            String loopVar = cond.label;
+            String originalLoopVar = cond.label;
             String iterableExpr = cond.expression.accept(this);
             Type iterableType = inferExpressionType(cond.expression);
 
-            boolean isShadowing = declaredVariables.contains(loopVar);
-            Type shadowedType = variableTypes.get(loopVar);
+            boolean isShadowing = declaredVariables.contains(originalLoopVar);
+            String actualLoopVar = originalLoopVar;
 
-            // Adiciona um bloco para criar um novo escopo em Java
-            sb.append("{\n");
-            indentLevel++;
+            // Se a variável já existe, crie um nome interno único para ela
+            if (isShadowing) {
+                actualLoopVar = originalLoopVar + "_" + loopCounter++;
+                remappedVariables.put(originalLoopVar, actualLoopVar);
+            }
+
+            // Salva o estado da variável para restaurar depois
+            Type shadowedType = variableTypes.get(originalLoopVar);
 
             if (iterableType.arrayDim > 0) {
                 Type elementType = new Type(iterableType.baseType, iterableType.arrayDim - 1);
                 String javaElementType = getJavaType(elementType);
                 
-                declaredVariables.add(loopVar);
-                variableTypes.put(loopVar, elementType);
+                declaredVariables.add(originalLoopVar);
+                variableTypes.put(originalLoopVar, elementType);
                 
-                sb.append(indent()).append("for (").append(javaElementType).append(" ").append(loopVar).append(" : ").append(iterableExpr).append(") {\n");
+                sb.append("for (").append(javaElementType).append(" ").append(actualLoopVar).append(" : ").append(iterableExpr).append(") {\n");
                 sb.append(cmd.body.accept(this));
                 sb.append(indent()).append("}\n");
 
             } else { // Iteração sobre inteiro
-                declaredVariables.add(loopVar);
-                variableTypes.put(loopVar, new Type("Int", 0));
+                declaredVariables.add(originalLoopVar);
+                variableTypes.put(originalLoopVar, new Type("Int", 0));
 
-                sb.append(indent()).append("for (int ").append(loopVar).append(" = 0; ")
-                  .append(loopVar).append(" < ").append(iterableExpr).append("; ")
-                  .append(loopVar).append("++) {\n");
+                sb.append("for (int ").append(actualLoopVar).append(" = 0; ")
+                  .append(actualLoopVar).append(" < ").append(iterableExpr).append("; ")
+                  .append(actualLoopVar).append("++) {\n");
                 sb.append(cmd.body.accept(this));
                 sb.append(indent()).append("}\n");
             }
             
-            indentLevel--;
-            sb.append(indent()).append("}\n"); // Fecha o bloco de escopo
-
-            // Restaura o estado da variável do visitor
+            // Limpa o remapeamento e restaura o estado anterior da variável
             if (isShadowing) {
-                variableTypes.put(loopVar, shadowedType);
+                remappedVariables.remove(originalLoopVar);
+                variableTypes.put(originalLoopVar, shadowedType);
             } else {
-                declaredVariables.remove(loopVar);
-                variableTypes.remove(loopVar);
+                declaredVariables.remove(originalLoopVar);
+                variableTypes.remove(originalLoopVar);
             }
         }
         return sb.toString();
@@ -238,9 +244,10 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return itCondExpr.expression.accept(this);
     }
 
+    // --- CORREÇÃO: Método visitLValueId que estava faltando ---
     @Override
-    public String visitExpVar(ExpVar exp) {
-        return exp.name;
+    public String visitLValueId(LValueId lValueId) {
+        return remappedVariables.getOrDefault(lValueId.id, lValueId.id);
     }
     
     // --- ATUALIZADO: visitProg para lidar com 'data' ---
@@ -709,9 +716,10 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
     // --- LValue VISITORS CORRIGIDOS ---
     // Esta é a correção principal. Agora o visitor sabe o que fazer
     // quando encontra uma variável simples no lado esquerdo de uma atribuição.
+    // --- visitExpVar e visitLValueId ATUALIZADOS para usar variáveis remapeadas ---
     @Override
-    public String visitLValueId(LValueId lValueId) {
-        return lValueId.id;
+    public String visitExpVar(ExpVar exp) {
+        return remappedVariables.getOrDefault(exp.name, exp.name);
     }
     @Override
     public String visitParam(Param param) { return null; }
