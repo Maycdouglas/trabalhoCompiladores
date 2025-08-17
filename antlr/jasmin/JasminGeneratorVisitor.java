@@ -110,7 +110,6 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         for (Param p : fun.params) {
             signature.append(getJasminType(p.type));
             locals.put(p.id, nextLocalIndex);
-
             nextLocalIndex++;
         }
         signature.append(")");
@@ -131,12 +130,16 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
         } else {
             if (fun.id.equals("main")) {
                 signature = new StringBuilder("main([Ljava/lang/String;)V");
-                nextLocalIndex = 1; // 'args' do main
+                nextLocalIndex = 1;
             }
             emitHeader(".method public static " + signature.toString());
         }
-        emit(".limit stack 20");
-        emit(".limit locals 20");
+
+        int limitLocals = nextLocalIndex + 10;
+        int limitStack = limitLocals + 5;
+
+        emit(".limit stack " + limitStack);
+        emit(".limit locals " + limitLocals);
         emitHeader("");
 
         fun.body.accept(this);
