@@ -164,10 +164,10 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return target + " = " + expression + ";\n";
     }
 
+// --- visitCmdIterate CORRIGIDO com bloco de escopo ---
     @Override
     public String visitCmdIterate(CmdIterate cmd) {
         StringBuilder sb = new StringBuilder();
-        
         if (cmd.condition instanceof ItCondExpr) {
             String loopVar = "_i" + loopCounter++;
             String limitExpr = cmd.condition.accept(this);
@@ -176,44 +176,52 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
               .append(loopVar).append("++) {\n");
             sb.append(cmd.body.accept(this));
             sb.append(indent()).append("}\n");
-            
         } else if (cmd.condition instanceof ItCondLabelled) {
             ItCondLabelled cond = (ItCondLabelled) cmd.condition;
             String loopVar = cond.label;
             String iterableExpr = cond.expression.accept(this);
-            
-            // Inferencia de tipo para saber se é um array ou um inteiro
             Type iterableType = inferExpressionType(cond.expression);
-            
-            // --- NOVO: Lógica para iterar sobre ARRAYS ---
+
+            boolean isShadowing = declaredVariables.contains(loopVar);
+            Type shadowedType = variableTypes.get(loopVar);
+
+            // Adiciona um bloco para criar um novo escopo em Java
+            sb.append("{\n");
+            indentLevel++;
+
             if (iterableType.arrayDim > 0) {
-                // Gera um laço for-each
                 Type elementType = new Type(iterableType.baseType, iterableType.arrayDim - 1);
                 String javaElementType = getJavaType(elementType);
-
+                
                 declaredVariables.add(loopVar);
                 variableTypes.put(loopVar, elementType);
                 
-                sb.append("for (").append(javaElementType).append(" ").append(loopVar).append(" : ").append(iterableExpr).append(") {\n");
+                sb.append(indent()).append("for (").append(javaElementType).append(" ").append(loopVar).append(" : ").append(iterableExpr).append(") {\n");
                 sb.append(cmd.body.accept(this));
                 sb.append(indent()).append("}\n");
-                
-                declaredVariables.remove(loopVar);
-                variableTypes.remove(loopVar);
 
-            } else { // Lógica existente para iterar com inteiros
+            } else { // Iteração sobre inteiro
                 declaredVariables.add(loopVar);
-                variableTypes.put(loopVar, new Type("Int", 0)); 
-                sb.append("for (int ").append(loopVar).append(" = 0; ")
+                variableTypes.put(loopVar, new Type("Int", 0));
+
+                sb.append(indent()).append("for (int ").append(loopVar).append(" = 0; ")
                   .append(loopVar).append(" < ").append(iterableExpr).append("; ")
                   .append(loopVar).append("++) {\n");
                 sb.append(cmd.body.accept(this));
                 sb.append(indent()).append("}\n");
+            }
+            
+            indentLevel--;
+            sb.append(indent()).append("}\n"); // Fecha o bloco de escopo
+
+            // Restaura o estado da variável do visitor
+            if (isShadowing) {
+                variableTypes.put(loopVar, shadowedType);
+            } else {
                 declaredVariables.remove(loopVar);
                 variableTypes.remove(loopVar);
             }
         }
-        
         return sb.toString();
     }
 
@@ -466,9 +474,11 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return String.valueOf(exp.value);
     }
     
+     // --- visitExpFloat CORRIGIDO para gerar literais 'float' válidos ---
     @Override
     public String visitExpFloat(ExpFloat exp) {
-        return String.valueOf(exp.value);
+        // Adiciona o sufixo 'f' para que o Java trate o literal como float, não double.
+        return String.valueOf(exp.value) + "f";
     }
 
     @Override

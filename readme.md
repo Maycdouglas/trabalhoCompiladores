@@ -165,3 +165,97 @@ Linux:
 
 - Execute o comando `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` para permitir a execução de scripts temporariamente nessa sessão do PowerShell
 - Execute o comando `.\scripts\sintaxe_errado.ps1` para rodar o script
+
+### ARQUIVOS SEMANTICOS no SOURCE-TO-SOURCE:
+
+### COMANDO PARA EXECUTAR SOURCE-TO-SOURCE
+
+Primeiramente, executa MAKE!
+
+1. `javac build/dataAbstract.java`
+2. `java -cp build dataAbstract`
+
+#### SIMPLE
+
+1. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/simple/assoc.lan ./build`
+   - `javac build/assoc.java`
+   - `java -cp build assoc`
+   - CERTO
+2. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/simple/equivChar.lan ./build`
+   - `javac build/equivChar.java`
+   - `java -cp build equivChar`
+   - CERTO
+3. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/simple/ifchain.lan ./build`
+   - `javac build/ifchain.java`
+   - `java -cp build ifchain`
+   - CERTO
+4. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/simple/iterVar.lan ./build`
+   - `javac build/iterVar.java`
+   - `java -cp build iterVar`
+   - CERTO
+5. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/simple/iterVarArr.lan ./build`
+   - `javac build/iterVarArr.java`
+   - `java -cp build iterVarArr`
+   - CERTO
+6. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/simple/iterVarDec.lan ./build`
+   - `javac build/iterVarDec.java`
+   - `java -cp build iterVarDec`
+   - ERRADO
+     - Problema com escopo
+7. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/simple/read.lan ./build`
+   - `javac build/read.java`
+   - `java -cp build read`
+   - CERTO
+8. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/simple/teste0.lan ./build`
+   - `javac build/teste0.java`
+   - `java -cp build teste0`
+   - CERTO
+
+#### FUNCTION
+
+1. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/function/board.lan ./build`
+   - `javac build/board.java`
+   - `java -cp build board`
+   - ERRADO
+2. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/function/fib.lan ./build`
+   - `javac build/fib.java`
+   - `java -cp build fib`
+   - CERTO
+3. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/function/numeric.lan ./build`
+   - `javac build/numeric.java`
+   - `java -cp build numeric`
+   - CERTO
+4. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/function/or_equiv.lan ./build`
+   - `javac build/or_equiv.java`
+   - `java -cp build or_equiv`
+   - CERTO
+5. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/function/return.lan ./build`
+   - `javac build/return.java`
+   - `java -cp build return`
+   - SEMANTICO RECUSA
+6. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/function/sort.lan ./build`
+   - `javac build/sort.java`
+   - `java -cp build sort`
+   - SEMANTICO RECUSA
+7. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/function/teste1.lan ./build`
+   - `javac build/teste1.java`
+   - `java -cp build teste1`
+   - ERRO
+
+#### FULL
+
+1. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/full/AFD.lan ./build`
+   - `javac build/AFD.java`
+   - `java -cp build AFD`
+   - SEMANTICO RECUSA
+2. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/semantica/certo/full/linked.lan ./build`
+   - `javac build/linked.java`
+   - `java -cp build linked`
+   - CERTO
+
+#### TYPES - SIMPLE
+
+1. `java -cp ".:antlr-4.8-complete.jar" Main -src ../Lang/types/simple/scope.lan ./build`
+   - `javac build/scope.java`
+   - `java -cp build scope`
+   - ERRADO
