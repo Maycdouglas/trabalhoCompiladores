@@ -321,19 +321,25 @@ public class SemanticVisitor implements Visitor<Type> {
     @Override
     public Type visitDataAbstract(DataAbstract data) {
         if (delta.containsKey(data.name)) {
-            throw new RuntimeException("Linha " + data.getLine() + ": Tipo '" + data.name + "' já definido.");
+            addError(data.getLine(), "Tipo '" + data.name + "' já definido.");
+            return null;
         }
 
         Map<String, Type> fields = new HashMap<>();
         for (Decl decl : data.declarations) {
             if (fields.containsKey(decl.id)) {
-                throw new RuntimeException("Linha " + decl.getLine() + ": Campo '" + decl.id
+                addError(decl.getLine(), "Campo '" + decl.id
                         + "' já foi declarado no tipo '" + data.name + "'.");
             }
             fields.put(decl.id, decl.type);
         }
 
         delta.put(data.name, data);
+
+        for (Fun fun : data.functions) {
+            fun.accept(this);
+        }
+
         return null;
     }
 
@@ -506,6 +512,10 @@ public class SemanticVisitor implements Visitor<Type> {
         for (Def def : prog.definitions) {
             if (def instanceof Fun) {
                 checkFunBody((Fun) def);
+            } else if (def instanceof DataAbstract) {
+                for (Fun fun : ((DataAbstract) def).functions) {
+                    checkFunBody(fun);
+                }
             }
         }
 
@@ -623,9 +633,16 @@ public class SemanticVisitor implements Visitor<Type> {
     public Type visitExpField(ExpField exp) {
         Type targetType = exp.target.accept(this);
 
+        if (targetType.isError()) {
+            exp.expType = Type.ERROR;
+            return Type.ERROR;
+        }
+
         if (!delta.containsKey(targetType.baseType)) {
-            throw new RuntimeException("Linha " + exp.getLine() + ": " +
+            addError(exp.getLine(),
                     "Tentativa de acessar campo '" + exp.field + "' em um tipo não-data: " + targetType.baseType);
+            exp.expType = Type.ERROR;
+            return Type.ERROR;
         }
 
         Data dataDef = delta.get(targetType.baseType);
@@ -639,6 +656,12 @@ public class SemanticVisitor implements Visitor<Type> {
                 }
             }
         } else if (dataDef instanceof DataAbstract) {
+            if (currentFunction == null || !((DataAbstract) dataDef).hasFunction(currentFunction.id)) {
+                addError(exp.getLine(), "Acesso para leitura do campo '" + exp.field + "' do tipo abstrato '"
+                        + dataDef.name + "' é proibido fora dos métodos do próprio tipo.");
+                exp.expType = Type.ERROR;
+                return Type.ERROR;
+            }
             for (Decl decl : ((DataAbstract) dataDef).declarations) {
                 if (decl.id.equals(exp.field)) {
                     fieldType = decl.type;
@@ -648,8 +671,10 @@ public class SemanticVisitor implements Visitor<Type> {
         }
 
         if (fieldType == null) {
-            throw new RuntimeException("Linha " + exp.getLine() + ": O tipo '" + targetType.baseType
+            addError(exp.getLine(), "O tipo '" + targetType.baseType
                     + "' não possui o campo '" + exp.field + "'.");
+            exp.expType = Type.ERROR;
+            return Type.ERROR;
         }
 
         exp.expType = fieldType;
@@ -717,17 +742,36 @@ public class SemanticVisitor implements Visitor<Type> {
     public Type visitLValueField(LValueField lValueField) {
         Type targetType = lValueField.target.accept(this);
 
-        if (!delta.containsKey(targetType.baseType)) {
-            throw new RuntimeException("Linha " + lValueField.getLine() + ": Tentativa de acessar campo '"
-                    + lValueField.field + "' em um tipo não-data: "
-                    + targetType.baseType);
+        if (targetType.isError()) {
+            lValueField.expType = Type.ERROR;
+            return Type.ERROR;
         }
 
-        Type fieldType = null;
+        if (!delta.containsKey(targetType.baseType)) {
+            addError(lValueField.getLine(), "Tentativa de acessar campo '" + lValueField.field
+                    + "' em um tipo não-data: " + targetType.baseType);
+            lValueField.expType = Type.ERROR;
+            return Type.ERROR;
+        }
 
         Data dataDef = delta.get(targetType.baseType);
+        Type fieldType = null;
+
         if (dataDef instanceof DataRegular) {
             for (Decl decl : ((DataRegular) dataDef).declarations) {
+                if (decl.id.equals(lValueField.field)) {
+                    fieldType = decl.type;
+                    break;
+                }
+            }
+        } else if (dataDef instanceof DataAbstract) {
+            if (currentFunction == null || !((DataAbstract) dataDef).hasFunction(currentFunction.id)) {
+                addError(lValueField.getLine(), "Acesso para escrita no campo '" + lValueField.field
+                        + "' do tipo abstrato '" + dataDef.name + "' é proibido fora dos métodos do próprio tipo.");
+                lValueField.expType = Type.ERROR;
+                return Type.ERROR;
+            }
+            for (Decl decl : ((DataAbstract) dataDef).declarations) {
                 if (decl.id.equals(lValueField.field)) {
                     fieldType = decl.type;
                     break;
@@ -736,8 +780,10 @@ public class SemanticVisitor implements Visitor<Type> {
         }
 
         if (fieldType == null) {
-            throw new RuntimeException("Linha " + lValueField.getLine() + ": " +
+            addError(lValueField.getLine(),
                     "O tipo '" + targetType.baseType + "' não possui o campo '" + lValueField.field + "'.");
+            lValueField.expType = Type.ERROR;
+            return Type.ERROR;
         }
 
         lValueField.expType = fieldType;

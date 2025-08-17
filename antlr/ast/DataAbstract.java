@@ -33,6 +33,19 @@ public class DataAbstract extends Data {
         return sb.toString();
     }
 
+    public boolean hasFunction(String funName) {
+        for (Fun fun : functions) {
+            if (fun.id.equals(funName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<Decl> getDeclarations() {
+        return this.declarations;
+    }
+
     @Override
     public <T> T accept(Visitor<T> visitor) {
         return visitor.visitDataAbstract(this);
