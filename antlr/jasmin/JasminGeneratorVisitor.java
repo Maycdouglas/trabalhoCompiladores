@@ -245,6 +245,7 @@ public class JasminGeneratorVisitor implements Visitor<Void> {
                         break;
                     case "Char":
                         emit("castore");
+                        break;
                     default:
                         throw new RuntimeException(
                                 "Tipo de array não suportado para atribuição: " + valueType.baseType);
