@@ -122,13 +122,12 @@ public class SemanticVisitor implements Visitor<Type> {
         return null;
     }
 
-
     @Override
     public Type visitCmdCall(CmdCall cmd) {
         Fun funDef = theta.get(cmd.id);
         if (funDef == null) {
             addError(cmd.getLine(), "Função '" + cmd.id + "' não declarada.");
-            return null; 
+            return null;
         }
 
         if (funDef.params.size() != cmd.args.size()) {
@@ -158,7 +157,7 @@ public class SemanticVisitor implements Visitor<Type> {
 
                     if (targetLval instanceof LValueId) {
                         String varName = ((LValueId) targetLval).id;
-                        Type existingVarType = findVar(varName); 
+                        Type existingVarType = findVar(varName);
 
                         if (existingVarType == null) {
                             currentScope().put(varName, returnType);
@@ -503,11 +502,17 @@ public class SemanticVisitor implements Visitor<Type> {
         for (Def def : prog.definitions) {
             def.accept(this);
         }
+
         for (Def def : prog.definitions) {
             if (def instanceof Fun) {
                 checkFunBody((Fun) def);
             }
         }
+
+        if (!theta.containsKey("main")) {
+            addError(0, "Função 'main' não definida no programa.");
+        }
+
         return null;
     }
 
