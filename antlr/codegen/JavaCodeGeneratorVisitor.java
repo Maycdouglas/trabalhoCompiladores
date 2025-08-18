@@ -14,39 +14,57 @@ import java.util.stream.Collectors;
 import java.util.List;
 import java.util.HashMap;
 
+/**
+ * Implementa o Visitor para a geração de código source-to-source.
+ * Percorre a Árvore Sintática Abstrata (AST) da linguagem Lang e a traduz
+ * para um código-fonte Java funcional e semanticamente equivalente.
+ */
+
 public class JavaCodeGeneratorVisitor implements Visitor<String> {
 
-    private final String className;
+    private final String className; // Nome da classe Java a ser gerada.
+
+    // Conjunto para rastrear variáveis já declaradas no escopo atual.
     private final Set<String> declaredVariables = new HashSet<>();
+
+    // Mapa para associar nomes de variáveis aos seus tipos (Type).
     private final Map<String, Type> variableTypes = new java.util.HashMap<>();
-    // --- NOVO: Rastrear a função atual para saber seus tipos de retorno ---
+
+
+    // Rastreia a definição da função que está sendo visitada atualmente.
     private Fun currentFunction = null; 
-    // --- NOVO: Rastrear todas as funções para a geração das classes de retorno ---
+
+    // Tabela de símbolos global para todas as funções do programa.
     private Map<String, Fun> allFunctions = new java.util.HashMap<>();
-    // --- NOVO: Mapa para guardar as definições de 'data' ---
+    
+     // Tabela de símbolos global para todos os tipos 'data' definidos.
     private Map<String, Data> allDataTypes = new java.util.HashMap<>();
-    // --- NOVO: Flag para saber se estamos dentro de uma classe 'data' ---
+    
+    // Flag para indicar se o visitor está dentro de um método de 'abstract data'.
     private boolean isInsideDataMethod = false;
-    // --- NOVO: Mapa para renomear variáveis sombreadas ---
+    
+    // Mapa para gerenciar o renomeamento de variáveis sombreadas (ex: em laços).
     private Map<String, String> remappedVariables = new HashMap<>();
     
-    // --- NOVO: Variável para controlar a indentação ---
+    // Contador para o nível de indentação do código gerado.
     private int indentLevel = 0;
 
-    // --- NOVO: Contador para gerar nomes de variáveis de loop únicos ---
+    // Contador para gerar nomes únicos para variáveis de laço internas.
     private int loopCounter = 0; 
 
     public JavaCodeGeneratorVisitor(String className) {
         this.className = className;
     }
 
-    // --- NOVO: Método auxiliar para gerar a indentação ---
+    // Método auxiliar que gera uma string de espaços para a indentação do código.
     private String indent() {
         return "    ".repeat(indentLevel);
     }
 
-    // --- ATUALIZADO: inferExpressionType para lidar com 'data' ---
+    // Infére o tipo de uma expressão Atua como uma análise semântica simplificada, usada quando a informação de tipo não foi pré-calculada pelo SemanticVisitor
     private Type inferExpressionType(Exp exp) {
+
+        // Prioriza o tipo já anotado pelo analisador semântico, se existir.
         if (exp.expType != null) { return exp.expType; }
         if (exp instanceof ExpInt) return new Type("Int", 0);
         if (exp instanceof ExpFloat) return new Type("Float", 0);
@@ -121,7 +139,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         throw new UnsupportedOperationException("Não foi possível inferir o tipo para a expressão: " + exp.getClass().getName());
     }
 
-    // --- NOVO: Implementação da criação de arrays (new) ---
+    // Traduz uma expressão 'new', seja para um array ou para uma instância de 'data'
     @Override
     public String visitExpNew(ExpNew exp) {
         if (exp.size != null) { // Verifica se é a criação de um array (ex: new Int[10])
@@ -133,7 +151,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return "new " + exp.type.baseType + "()";
     }
 
-    // --- NOVO: Implementação do acesso a índice de array ---
+    // Traduz o acesso a um índice de array em uma expressão (ex: v[i])
     @Override
     public String visitExpIndex(ExpIndex exp) {
         String target = exp.target.accept(this);
@@ -141,7 +159,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return target + "[" + index + "]";
     }
 
-    // --- NOVO: Implementação para quando um índice é um LValue (lado esquerdo da atribuição) ---
+    // Traduz um LValue de índice de array, usado no lado esquerdo de uma atribuição
     @Override
     public String visitLValueIndex(LValueIndex lValueIndex) {
         String target = lValueIndex.target.accept(this);
@@ -149,16 +167,18 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return target + "[" + index + "]";
     }
 
-
-    // --- ATUALIZADO: visitCmdAssign para lidar com LValueField ---
+    // Traduz um comando de atribuição.
+    // Gera uma declaração de variável na primeira atribuição, ou uma simples atribuição para variáveis já existentes, índices de array ou campos
     @Override
     public String visitCmdAssign(CmdAssign cmd) {
         String expression = cmd.expression.accept(this);
         String target = cmd.target.accept(this); 
 
+        // Se for uma atribuição a uma variável simples pela primeira vez...
         if (cmd.target instanceof LValueId) {
             String varName = ((LValueId) cmd.target).id;
             if (!declaredVariables.contains(varName)) {
+                // ...registra e gera uma declaração com tipo.
                 declaredVariables.add(varName);
                 Type inferredType = inferExpressionType(cmd.expression);
                 variableTypes.put(varName, inferredType);
@@ -167,15 +187,16 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             }
         }
         
-        // Para LValueId (já declarado), LValueIndex e LValueField, a lógica é a mesma.
+        // Para variáveis já declaradas e outros LValues (v[i], p.x), gera uma atribuição simples
         return target + " = " + expression + ";\n";
     }
 
-// --- visitCmdIterate CORRIGIDO com renomeação de variável ---
+    // Traduz um comando 'iterate', lidando com as duas variantes (com e sem rótulo) e com o sombreamento de variáveis
     @Override
     public String visitCmdIterate(CmdIterate cmd) {
         StringBuilder sb = new StringBuilder();
         if (cmd.condition instanceof ItCondExpr) {
+            // Caso: iterate(expr) -> for (int _i = 0; _i < expr; _i++)
             String loopVar = "_i" + loopCounter++;
             String limitExpr = cmd.condition.accept(this);
             sb.append("for (int ").append(loopVar).append(" = 0; ")
@@ -192,7 +213,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             boolean isShadowing = declaredVariables.contains(originalLoopVar);
             String actualLoopVar = originalLoopVar;
 
-            // Se a variável já existe, crie um nome interno único para ela
+            // Se a variável do laço já existe no escopo, renomeia para evitar conflito
             if (isShadowing) {
                 actualLoopVar = originalLoopVar + "_" + loopCounter++;
                 remappedVariables.put(originalLoopVar, actualLoopVar);
@@ -202,6 +223,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             Type shadowedType = variableTypes.get(originalLoopVar);
 
             if (iterableType.arrayDim > 0) {
+                // Caso: iterate(elem : array) -> for (Type elem : array)
                 Type elementType = new Type(iterableType.baseType, iterableType.arrayDim - 1);
                 String javaElementType = getJavaType(elementType);
                 
@@ -212,7 +234,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
                 sb.append(cmd.body.accept(this));
                 sb.append(indent()).append("}\n");
 
-            } else { // Iteração sobre inteiro
+            } else { // Caso: iterate(i : int_expr) -> for (int i = 0; ...)
                 declaredVariables.add(originalLoopVar);
                 variableTypes.put(originalLoopVar, new Type("Int", 0));
 
@@ -223,7 +245,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
                 sb.append(indent()).append("}\n");
             }
             
-            // Limpa o remapeamento e restaura o estado anterior da variável
+            // Restaura o estado da variável sombreada após o laço
             if (isShadowing) {
                 remappedVariables.remove(originalLoopVar);
                 variableTypes.put(originalLoopVar, shadowedType);
@@ -235,33 +257,41 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return sb.toString();
     }
 
-    // --- NOVO: Visitor para a condição com label ---
+    // Traduz a parte da expressão de uma condição de 'iterate' com rótulo (ex: iterate(i: 5)). Apenas visita a expressão para obter sua tradução em Java
     @Override
     public String visitItCondLabelled(ItCondLabelled itCondLabelled) {
         return itCondLabelled.expression.accept(this);
     }
 
-    // --- NOVO: Implementação do visitor para a condição do iterate ---
+    // Traduz a parte da expressão de uma condição de 'iterate' sem rótulo (ex: iterate(5))
     @Override
     public String visitItCondExpr(ItCondExpr itCondExpr) {
         // Apenas visita a expressão interna
         return itCondExpr.expression.accept(this);
     }
 
-    // --- CORREÇÃO: Método visitLValueId que estava faltando ---
+    // Traduz um LValue que é um identificador (ex: a variável 'x'). 
+    // Verifica se a variável foi renomeada devido ao sombreamento em um laço e retorna o nome correto a ser usado no código Java gerado
     @Override
     public String visitLValueId(LValueId lValueId) {
         return remappedVariables.getOrDefault(lValueId.id, lValueId.id);
     }
     
-    // --- ATUALIZADO: visitProg para lidar com 'data' ---
+    /**
+     * Ponto de entrada da geração de código para um programa inteiro.
+     * Orquestra a tradução em uma ordem específica:
+     * 1. Pré-processa todas as definições de 'data' e 'fun'.
+     * 2. Gera as classes Java para os tipos 'data'.
+     * 3. Gera as classes auxiliares para funções com múltiplos retornos.
+     * 4. Gera os métodos Java para as funções 'lang'.
+     */
     @Override
     public String visitProg(Prog prog) {
         StringBuilder sb = new StringBuilder();
         sb.append("import java.util.Scanner;\n\n");
         sb.append("public class ").append(className).append(" {\n");
         
-        // Limpa e pré-processa todas as definições
+        // Fase de pré-processamento: cataloga todas as definições para referência futura
         allFunctions.clear();
         allDataTypes.clear();
         for (Def def : prog.definitions) {
@@ -298,20 +328,20 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return sb.toString();
     }
 
-    // --- NOVO: Método para gerar a classe de retorno aninhada ---
+    // Método auxiliar que gera uma classe estática aninhada para simular múltiplos retornos em Java
     private String generateReturnClass(Fun fun) {
         StringBuilder sb = new StringBuilder();
         String returnClassName = fun.id + "_return";
         sb.append(indent()).append("public static class ").append(returnClassName).append(" {\n");
         indentLevel++;
         
-        // Campos
+        // Gera os campos públicos (ret0, ret1, ...)
         for (int i = 0; i < fun.retTypes.size(); i++) {
             String fieldType = getJavaType(fun.retTypes.get(i));
             sb.append(indent()).append("public ").append(fieldType).append(" ret").append(i).append(";\n");
         }
 
-        // Construtor
+        // Gera o construtor para inicializar todos os campos
         sb.append(indent()).append("public ").append(returnClassName).append("(");
         for (int i = 0; i < fun.retTypes.size(); i++) {
             String fieldType = getJavaType(fun.retTypes.get(i));
@@ -333,15 +363,21 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return sb.toString();
     }
 
-    // --- visitFun CORRIGIDO ---
+    /**
+     * Traduz uma definição de função 'lang' para um método Java.
+     * Lida com a assinatura do método (modificadores, tipo de retorno, nome, parâmetros)
+     * e delega a tradução do corpo para 'visitCmdBlock'.
+     */
     @Override
     public String visitFun(Fun fun) {
         this.currentFunction = fun;
         
         StringBuilder sb = new StringBuilder();
+        // Limpa os escopos para cada nova função
         declaredVariables.clear();
         variableTypes.clear();
         
+        // Determina o tipo de retorno do método Java
         String returnType;
         if (fun.retTypes.isEmpty()) {
             returnType = "void";
@@ -351,10 +387,10 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             returnType = fun.id + "_return";
         }
 
-        // CORREÇÃO APLICADA AQUI
+        // Traduz a lista de parâmetros
         String params;
         if (fun.id.equals("main")) {
-            params = "String[] args"; // Força a assinatura correta para o main
+            params = "String[] args"; // Força a assinatura padrão do 'main' em Java
         } else {
             params = fun.params.stream()
                 .map(p -> {
@@ -366,15 +402,18 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
                 .collect(Collectors.joining(", "));
         }
 
+        // Monta a assinatura completa do método
         sb.append(indent()).append("public static ").append(returnType).append(" ").append(fun.id)
           .append("(").append(params).append(") {\n");
         
+        // Adiciona a criação do Scanner apenas dentro do 'main'
         if (fun.id.equals("main")) {
             indentLevel++;
             sb.append(indent()).append("Scanner _scanner = new Scanner(System.in);\n");
             indentLevel--;
         }
 
+        // Traduz o corpo da função
         sb.append(fun.body.accept(this));
         
         sb.append(indent()).append("}\n\n");
@@ -382,15 +421,16 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return sb.toString();
     }
 
-    // --- visitCmdRead ATUALIZADO para ser genérico ---
+      
+    // Traduz o comando 'read' para código Java
     @Override
     public String visitCmdRead(CmdRead cmd) {
         StringBuilder sb = new StringBuilder();
         
-        // Gera o código para o alvo da leitura (pode ser 'x', 'v[i]' ou 'p.x')
+        // Gera o código para o alvo da leitura (pode ser 'x', 'v[i]' ou 'p.x').
         String target = cmd.lvalue.accept(this);
         
-        // Infére o tipo do alvo para saber qual método do Scanner usar
+        // Infére o tipo do alvo para saber qual método do Scanner usar.
         Type targetType = inferExpressionType(cmd.lvalue);
         if (targetType == null) {
             throw new IllegalStateException("Não foi possível inferir o tipo para o alvo do comando 'read'.");
@@ -399,7 +439,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         sb.append("System.out.print(\" entrada> \");\n");
         sb.append(indent());
 
-        // Escolhe o método do Scanner com base no tipo inferido
+        // Escolhe o método do Scanner com base no tipo inferido.
         switch (targetType.baseType) {
             case "Int":
                 sb.append(target).append(" = _scanner.nextInt();\n");
@@ -414,7 +454,7 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return sb.toString();
     }
     
-    // ATUALIZADO: Gerencia a indentação para todos os comandos dentro dele.
+    // Traduz um bloco de comandos. Aumenta o nível de indentação, visita cada comando filho e depois diminui o nível de indentação
     @Override
     public String visitCmdBlock(CmdBlock cmd) {
         StringBuilder sb = new StringBuilder();
@@ -425,18 +465,19 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         indentLevel--;
         return sb.toString();
     }
-
+    
+    // Traduz um comando 'print'
     @Override
     public String visitCmdPrint(CmdPrint cmd) {
         String value = cmd.value.accept(this);
-        // Se for um caractere de nova linha, usa println(), senão usa print().
+        // Tratamento especial: se for um caractere de nova linha, usa println(), senão usa print().
         if (cmd.value instanceof ExpChar && ((ExpChar) cmd.value).value == '\n') {
             return "System.out.println();\n";
         }
         return "System.out.print(" + value + ");\n";
     }
     
-    // --- NOVO: Implementação do CmdIf com a nova estratégia de indentação ---
+    // Traduz um comando 'if-then-else'
     @Override
     public String visitCmdIf(CmdIf cmd) {
         StringBuilder sb = new StringBuilder();
@@ -459,13 +500,18 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return sb.toString();
     }
 
+    // Método auxiliar para mapear um tipo da linguagem 'lang' para seu equivalente em Java.
     private String getJavaType(Type langType) {
         if (langType == null) {
             throw new IllegalStateException("Erro: Tipo da expressão é nulo.");
         }
+
+        // Lida com tipos de array recursivamente
         if (langType.arrayDim > 0) {
             return getJavaType(new Type(langType.baseType, 0)) + "[]".repeat(langType.arrayDim);
         }
+
+        // Mapeia os tipos base.
         switch (langType.baseType) {
             case "Int":
                 return "int";
@@ -474,24 +520,26 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             case "Bool":
                 return "boolean";
             case "Char":
-                return "String"; 
+                return "String"; // Char de 'lang' é traduzido para String em Java para simplicidade
             default:
-                return langType.baseType;
+                return langType.baseType; // Para tipos 'data' definidos pelo usuário
         }
     }
     
+    // Traduz um literal inteiro
     @Override
     public String visitExpInt(ExpInt exp) {
         return String.valueOf(exp.value);
     }
     
-     // --- visitExpFloat CORRIGIDO para gerar literais 'float' válidos ---
+     // Traduz um literal de ponto flutuante
     @Override
     public String visitExpFloat(ExpFloat exp) {
-        // Adiciona o sufixo 'f' para que o Java trate o literal como float, não double.
+        // Adiciona o sufixo 'f' para que o Java trate o literal como float, não double
         return String.valueOf(exp.value) + "f";
     }
 
+    // Traduz um literal de caractere, tratando caracteres de escape
     @Override
     public String visitExpChar(ExpChar exp) {
         char c = exp.value;
@@ -502,18 +550,19 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
                 return "\"\\t\""; // Retorna a string Java para tabulação
             case '\\':
                 return "\"\\\\\""; // Retorna a string Java para a própria barra
-            // Adicione outros caracteres de escape se necessário
             default:
                 // Para caracteres normais, apenas os coloca entre aspas duplas
                 return "\"" + c + "\"";
         }
     }
     
+    // Traduz um literal booleano
     @Override
     public String visitExpBool(ExpBool exp) {
         return String.valueOf(exp.value);
     }
 
+    // Traduz uma expressão binária
     @Override
     public String visitExpBinOp(ExpBinOp exp) {
         String left = exp.left.accept(this);
@@ -521,24 +570,24 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         return "(" + left + " " + exp.op + " " + right + ")";
     }
 
+    // Traduz uma expressão entre parênteses
     @Override
     public String visitExpParen(ExpParen exp) {
         return "(" + exp.exp.accept(this) + ")";
     }
 
-    // --- NOVO: Implementação dos Operadores Unários ---
+    // Traduz uma expressão unária
     @Override
     public String visitExpUnaryOp(ExpUnaryOp exp) {
         String operand = exp.exp.accept(this);
-        // A tradução é direta, apenas colocamos o operador na frente
-        // e garantimos os parênteses para a precedência correta.
+        // Garante os parênteses para a precedência correta
         return "(" + exp.op + operand + ")";
     }
 
-    // --- Métodos não implementados (mantidos como no seu arquivo) ---
     @Override
     public String visitCmd(Cmd exp) { return null; }
-    // --- visitCmdCall CORRIGIDO ---
+
+    // Traduz uma chamada de função usada como um comando (procedimento). Lida com atribuição de retorno único e múltiplo.
     @Override
     public String visitCmdCall(CmdCall cmd) {
         String args = cmd.args.stream()
@@ -552,25 +601,28 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             throw new IllegalStateException("Função '" + cmd.id + "' não encontrada.");
         }
 
+         // Caso de chamada sem atribuição de retorno
         if (cmd.rets.isEmpty()) {
             return callExpr + ";\n";
         }
         
-        // Múltiplos retornos
+        // Caso de múltiplos retornos
         if (calledFun.retTypes.size() > 1) {
             String tempVar = "_" + cmd.id + "_ret" + loopCounter++;
             String returnClassName = cmd.id + "_return";
             
             StringBuilder sb = new StringBuilder();
+            // 1. Armazena o objeto de retorno em uma variável temporária
             sb.append(returnClassName).append(" ").append(tempVar).append(" = ").append(callExpr).append(";\n");
 
+            // 2. Desempacota os valores para as variáveis de destino
             for (int i = 0; i < cmd.rets.size(); i++) {
                 LValue retLVal = cmd.rets.get(i);
                 if (retLVal instanceof LValueId) {
                     String varName = ((LValueId) retLVal).id;
                     String assignmentSource = tempVar + ".ret" + i;
                     
-                    // Verifica se a variável já foi declarada
+                    // Se a variável de destino não foi declarada ainda, gera a declaração
                     if (!declaredVariables.contains(varName)) {
                         declaredVariables.add(varName);
                         Type returnType = calledFun.retTypes.get(i);
@@ -579,21 +631,21 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
                         
                         // Gera a declaração completa
                         sb.append(indent()).append(javaType).append(" ").append(varName).append(" = ").append(assignmentSource).append(";\n");
-                    } else {
+                    } else { // Se já existe, apenas atribui
                         // Apenas atribui
                         sb.append(indent()).append(varName).append(" = ").append(assignmentSource).append(";\n");
                     }
-                } else {
-                    // Lida com outros LValues (como v[i])
+                } else { // Para atribuição a v[i] ou p.x
                     String target = retLVal.accept(this);
                     sb.append(indent()).append(target).append(" = ").append(tempVar).append(".ret").append(i).append(";\n");
                 }
             }
             return sb.toString();
-        } else { // Retorno único
+        } else { // Caso de retorno único
             String target = cmd.rets.get(0).accept(this);
             if (cmd.rets.get(0) instanceof LValueId) {
                 String varName = ((LValueId) cmd.rets.get(0)).id;
+                // Se a variável não foi declarada, gera a declaração
                 if (!declaredVariables.contains(varName)) {
                      declaredVariables.add(varName);
                      Type returnType = calledFun.retTypes.get(0);
@@ -605,35 +657,41 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
             return target + " = " + callExpr + ";\n";
         }
     }
-    // ATUALIZADO: para lidar com múltiplos valores de retorno
+
+    // Traduz um comando 'return'. Lida com os casos de retorno vazio, retorno único e múltiplos retornos
     @Override
     public String visitCmdReturn(CmdReturn cmd) {
+        // Caso de 'return' sem valor (em uma função void)
         if (cmd.values.isEmpty()) {
             return "return;\n";
         }
 
+        // Traduz todas as expressões de retorno e as une com vírgulas
         String values = cmd.values.stream()
             .map(v -> v.accept(this))
             .collect(Collectors.joining(", "));
 
-        // Se a função atual tiver múltiplos retornos, instancie a classe de retorno
+        // Se a função atual tem múltiplos retornos, gera a instanciação da classe de retorno
         if (currentFunction != null && currentFunction.retTypes.size() > 1) {
             return "return new " + currentFunction.id + "_return(" + values + ");\n";
         }
 
-        // Caso contrário, é um retorno simples
+        // Caso contrário, é um retorno de valor simples
         return "return " + values + ";\n";
     }
+
+    // Método para o nó abstrato 'Data'. Não é chamado diretamente
     @Override
     public String visitData(Data data) { return null; }
-    // --- NOVO: Visitor para DataAbstract ---
+
+    // Traduz a definição de um 'abstract data' para uma classe Java estática aninhada. Gera os campos como 'private' e os métodos internos como 'public'
     @Override
     public String visitDataAbstract(DataAbstract data) {
         StringBuilder sb = new StringBuilder();
         sb.append(indent()).append("public static class ").append(data.name).append(" {\n");
         indentLevel++;
 
-        // Gera campos como private para encapsulamento
+        // Gera campos como 'private' para garantir o encapsulamento
         for (Decl decl : data.declarations) {
             sb.append(indent()).append("private ").append(getJavaType(decl.type)).append(" ").append(decl.id).append(";\n");
         }
@@ -650,7 +708,8 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         sb.append(indent()).append("}\n\n");
         return sb.toString();
     }
-    // --- NOVO: Visitor para DataRegular ---
+
+    // Traduz a definição de um 'data' regular para uma classe Java estática aninhada. Os campos são gerados como 'public' por padrão
     @Override
     public String visitDataRegular(DataRegular data) {
         StringBuilder sb = new StringBuilder();
@@ -663,23 +722,33 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         sb.append(indent()).append("}\n\n");
         return sb.toString();
     }
+
+    // Método para um nó de declaração de campo (Decl). Não realiza nenhuma ação pois os campos são traduzidos dentro de 'visitData...'
     @Override
     public String visitDecl(Decl decl) { return null; }
+
+    // Método para o nó abstrato 'Def'. Não é chamado diretamente
     @Override
     public String visitDef(Def def) { return null; }
+    
+    // Método para o nó abstrato 'Exp'. Não é chamado diretamente
     @Override
     public String visitExp(Exp exp) { return null; }
-    // --- ATUALIZADO: Implementação de Chamadas de Função em Expressões ---
+
+    // Traduz uma chamada de função que é usada dentro de uma expressão
     @Override
     public String visitExpCall(ExpCall exp) {
-        // Este método agora apenas gera a chamada base, ex: "soma(10, 5)"
+        // Apenas traduz a chamada base, ex: "soma(10, 5)".
+        // A lógica de acesso ao índice é tratada em 'visitExpCallIndexed'.
         String args = exp.args.stream()
             .map(arg -> arg.accept(this))
             .collect(Collectors.joining(", "));
             
         return exp.id + "(" + args + ")";
     }
-     @Override
+
+    // Traduz uma chamada de função com acesso a um índice de retorno (ex: func()[0])
+    @Override
     public String visitExpCallIndexed(ExpCallIndexed exp) {
         Fun calledFun = allFunctions.get(exp.call.id);
         if (calledFun == null) {
@@ -689,44 +758,53 @@ public class JavaCodeGeneratorVisitor implements Visitor<String> {
         // Gera a chamada base, ex: "fibonacci(n - 1)"
         String functionCall = exp.call.accept(this);
         
-        // Se a função tem um único retorno, o [0] é implícito e não gera código extra em Java.
+        // Se a função tem um único retorno, o [0] é implícito e não gera código extra em Java
         if (calledFun.retTypes.size() == 1) {
             return functionCall;
         }
 
-        // Se a função tem múltiplos retornos, acessa o campo .retX do objeto de retorno.
+        // Se a função tem múltiplos retornos, acessa o campo .retX do objeto de retorno
         String index = exp.index.accept(this);
         return "(" + functionCall + ".ret" + index + ")";
     }
-    // --- NOVO: Visitor para acesso a campos (p.x) ---
+
+    // Traduz o acesso a um campo de 'data' em uma expressão (ex: p.x)
     @Override
     public String visitExpField(ExpField exp) {
         return exp.target.accept(this) + "." + exp.field;
     }
-    // --- visitExpNull CORRIGIDO ---
+
+    // Traduz o literal 'null'
     @Override
     public String visitExpNull(ExpNull exp) {
         return "null";
     }
+
+    // Método para o nó abstrato 'ItCond'. Não é chamado diretamente
     @Override
     public String visitItCond(ItCond itCond) { return null; }
+    
+    // Método para o nó abstrato 'LValue'. Não é chamado diretamente
     @Override
     public String visitLValue(LValue lValue) { return null; }
-    // --- NOVO: Visitor para campos no lado esquerdo (p.x = ...) ---
+    
+    // Traduz um LValue que é um campo de 'data' (ex: p.x = ...)
     @Override
     public String visitLValueField(LValueField lValueField) {
         return lValueField.target.accept(this) + "." + lValueField.field;
     }
-    // --- LValue VISITORS CORRIGIDOS ---
-    // Esta é a correção principal. Agora o visitor sabe o que fazer
-    // quando encontra uma variável simples no lado esquerdo de uma atribuição.
-    // --- visitExpVar e visitLValueId ATUALIZADOS para usar variáveis remapeadas ---
+
+    // Traduz uma variável em uma expressão, considerando se ela foi renomeada
     @Override
     public String visitExpVar(ExpVar exp) {
         return remappedVariables.getOrDefault(exp.name, exp.name);
     }
+    
+    // Método para o nó de Parâmetro de função. Não realiza nenhuma ação pois os parâmetros são traduzidos em 'visitFun'
     @Override
     public String visitParam(Param param) { return null; }
+    
+    // Método para o nó de Tipo. Não possui ação na geração de código
     @Override
     public String visitType(Type type) { return null; }
 }
