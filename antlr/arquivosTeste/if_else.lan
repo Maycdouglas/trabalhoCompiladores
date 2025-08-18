@@ -1,8 +1,0 @@
-main(){
-    x = false ;
-    num = 10;
-    if ( num % 2 == 0) {
-        x = true ;
-    }
-    print x;
-}

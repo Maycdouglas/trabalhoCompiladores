@@ -1,9 +1,0 @@
-main() {
-  x = 10;
-  y = -x;
-  z = !(x == 10);
-  print y;
-  print '\n';
-  print z;
-  print '\n';
-}

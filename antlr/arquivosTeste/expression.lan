@@ -1,6 +1,0 @@
-main() {
-  x = 10 + 5 * 2;
-  y = (x < 30);
-  print x;
-  print y;
-}
