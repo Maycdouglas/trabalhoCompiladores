@@ -21,21 +21,6 @@ prog: def*;
 
 def: data | fun;
 
-/* O ANTLR PODE RECLAMAR DE AMBIGUIDADE AQUI
- 
- Abaixo deixei como tinha feito anteriormente,
- entretanto, foi necessário mudar, devido a AMBIGUIDADE causada pelo DATA TYID.
- A recomendação é
- separar em duas novas regras, pensando no interpretador e compilador no futuro.
- 
- data: 
- ABSTRACT
- DATA TYID LBRACE (decl | fun)* RBRACE
- |
- DATA TYID LBRACE decl* RBRACE
- ;
- */
-
 data: dataAbstract | dataRegular;
 
 dataAbstract: ABSTRACT DATA TYID LBRACE (decl | fun)* RBRACE;
@@ -44,25 +29,9 @@ dataRegular: DATA TYID LBRACE decl* RBRACE;
 
 decl: ID DCOLON type SEMI;
 
-/* Inicialmente fiz como está abaixo, porém, pensando na legibilidade e manutenção futura,
- foi
- recomendado que os tipos do retorno se tornassem uma regra separada.
- fun: ID LPAREN params?
- RPAREN
- (COLON type (COMMA type)* )? cmd
- ;
- */
-
 fun: ID LPAREN params? RPAREN retTypes? cmd;
 
 retTypes: COLON type (COMMA type)*;
-
-/* Inicialmente fiz como está abaixo, porém, é recomendado separar se for usar AST com listas.
- Facilitará percorrer a lista de parâmetros no Visitor.
- params: ID DCOLON type (COMMA ID DCOLON
- type)*
- ;
- */
 
 params: param (COMMA param)*;
 
@@ -88,59 +57,7 @@ cmd:
 		LANGLE lvalue (COMMA lvalue)* RANGLE
 	)? SEMI;
 
-/* Fiz da forma que está abaixo, mas recomendou o uso de labels para facilitar o Visit no futuro.
- itcond: ID COLON exp | exp
- ;
- */
-
 itcond: ID COLON exp # CondLabelled | exp # CondExpr;
-
-/*TUDO ABAIXO TEVE QUE MUDAR, DEVIDO RECURSÃO À ESQUERDA
- exp:
- exp op exp
- |
- NOT exp
- |
- MINUS
- exp
- |
- lvalue
- |
- LPAREN exp RPAREN
- |
- NEW type (LBRACK exp RBRACK)?
- |
- ID LPAREN exps? RPAREN
- LBRACK exp RBRACK
- |
- TRUE
- |
- FALSE
- |
- NULL
- |
- INT
- |
- FLOAT
- |
- CHAR
- ;
- 
- op: AND | LANGLE |
- EQ | NEQ | PLUS | MINUS | MUL | DIV | MOD
- ;
- 
- lvalue:
- ID
- |
- lvalue LBRACK exp RBRACK
- |
- lvalue
- DOT ID
- ;
- 
- exps: exp (COMMA exp)
- */
 
 exp: expOr # ExpTop;
 
@@ -235,7 +152,6 @@ RBRACK: ']';
 RANGLE: '>';
 LANGLE: '<';
 
-/* Não validei os comentários, mas parecem estar certos */
 LINE_COMMENT: '--' ~[\r\n]* -> skip;
 BLOCK_COMMENT: '{-' .*? '-}' -> skip;
 WS: [ \t\r\n]+ -> skip;
